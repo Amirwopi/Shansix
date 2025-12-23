@@ -1,13 +1,22 @@
-import { PrismaClient } from '@prisma/client'
+// Try to import Prisma client, fall back to mock
+import { PrismaClient } from '@prisma/client';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+let db: any;
+
+try {
+  // Try to import the generated Prisma Client
+  const { PrismaClient: PrismaClientConstructor } = require('@prisma/client');
+  
+  const prismaClient = new PrismaClientConstructor();
+  db = prismaClient;
+  
+  console.log('✅ Prisma Client loaded successfully');
+} catch (error) {
+  console.warn('⚠️  Prisma Client not found, using mock database');
+  console.warn('💡 Run "bun run db:push" to fix this issue');
+  
+  // Import mock database
+  db = require('./db-mock').default;
 }
 
-export const db =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: ['query'],
-  })
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+export { db };
