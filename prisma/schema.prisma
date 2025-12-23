@@ -1,0 +1,123 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User model for storing registered users
+model User {
+  id        String   @id @default(uuid())
+  mobile    String   @unique
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  otps       OTP[]
+  payments   Payment[]
+  lotteryCodes LotteryCode[]
+  winners    Winner[]
+
+  @@map("users")
+}
+
+// OTP model for storing one-time passwords
+model OTP {
+  id        String   @id @default(uuid())
+  mobile    String
+  code      String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  userId String
+
+  @@map("otps")
+}
+
+// Payment model for storing payment transactions
+model Payment {
+  id              String   @id @default(uuid())
+  userId          String
+  amount          BigInt
+  status          String   // PENDING, SUCCESS, FAILED
+  authority       String?  // ZarinPal authority code
+  refId           String?  // ZarinPal reference ID
+  transactionId   String?  @unique
+  paymentDate     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  user          User         @relation(fields: [userId], references: [id])
+  lotteryCodes  LotteryCode[]
+
+  @@map("payments")
+}
+
+// LotteryCode model for storing generated lottery codes
+model LotteryCode {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  userId      String
+  paymentId   String
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id])
+  payment Payment @relation(fields: [paymentId], references: [id])
+  winner  Winner?
+
+  @@map("lottery_codes")
+}
+
+// LotterySettings model for storing lottery configuration
+model LotterySettings {
+  id              String   @id @default(uuid())
+  capacity        Int
+  entryPrice      BigInt
+  winnersCount    Int      @default(1)
+  status          String   // OPEN, CLOSED, DRAWN
+  drawDate        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("lottery_settings")
+}
+
+// Winner model for storing lottery winners
+model Winner {
+  id          String   @id @default(uuid())
+  userId      String
+  lotteryCode String
+  drawDate    DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user    User       @relation(fields: [userId], references: [id])
+  code    LotteryCode @relation(fields: [lotteryCode], references: [code])
+
+  @@map("winners")
+}
+
+// TransactionLog model for audit logging
+model TransactionLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  action      String
+  details     String
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@map("transaction_logs")
+}
