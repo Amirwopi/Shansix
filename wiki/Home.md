@@ -31,7 +31,7 @@ Shansix یک سیستم قرعه‌کشی آنلاین کامل و امن است
 
 ### ✅ احراز هویت
 - ثبت‌نام با شماره موبایل ایرانی
-- ارسال واقعی SMS با Melipayamak
+- ارسال واقعی SMS با Faraz SMS
 - کدهای OTP با انقضای 2 دقیقه
 - توکن‌های JWT امن
 
@@ -70,7 +70,7 @@ Shansix یک سیستم قرعه‌کشی آنلاین کامل و امن است
 | Backend | Next.js API Routes, Prisma ORM |
 | Database | SQLite (configurable) |
 | Auth | JWT, HttpOnly Cookies |
-| SMS | Melipayamak SDK |
+| SMS | Faraz SMS SDK |
 | Payment | ZarinPal Checkout SDK |
 | Security | Rate Limiting, CSRF Protection |
 

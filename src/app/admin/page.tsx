@@ -139,8 +139,66 @@ export default function AdminPage() {
   };
 
   const handleUpdateSettings = async () => {
-    // This would open a dialog to edit settings
-    alert('این قابلیت به زودی اضافه خواهد شد');
+    if (!data) return;
+
+    const nextCapacityStr = prompt('ظرفیت جدید را وارد کنید:', String(data.settings.capacity));
+    if (nextCapacityStr === null) return;
+
+    const nextEntryPriceStr = prompt('هزینه شرکت (تومان) را وارد کنید:', String(data.settings.entryPrice));
+    if (nextEntryPriceStr === null) return;
+
+    const nextWinnersCountStr = prompt('تعداد برندگان را وارد کنید:', String(data.settings.winnersCount));
+    if (nextWinnersCountStr === null) return;
+
+    const capacity = Number(nextCapacityStr);
+    const entryPrice = Number(nextEntryPriceStr);
+    const winnersCount = Number(nextWinnersCountStr);
+
+    if (!Number.isInteger(capacity) || capacity <= 0) {
+      alert('ظرفیت نامعتبر است');
+      return;
+    }
+    if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+      alert('هزینه شرکت نامعتبر است');
+      return;
+    }
+    if (!Number.isInteger(winnersCount) || winnersCount <= 0) {
+      alert('تعداد برندگان نامعتبر است');
+      return;
+    }
+
+    setActionLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ capacity, entryPrice, winnersCount }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        alert(result.message || 'خطا در بروزرسانی تنظیمات');
+        return;
+      }
+
+      setData({
+        ...data,
+        settings: {
+          ...data.settings,
+          ...result.settings,
+        },
+      });
+
+      alert('تنظیمات با موفقیت بروزرسانی شد');
+    } catch (err) {
+      alert('خطا در ارتباط با سرور');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -339,7 +397,7 @@ export default function AdminPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">وضعیت</p>
-                      <p className="text-lg font-semibold mt-1">{getStatusBadge(data.settings.status)}</p>
+                      <div className="text-lg font-semibold mt-1">{getStatusBadge(data.settings.status)}</div>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">ظرفیت</p>

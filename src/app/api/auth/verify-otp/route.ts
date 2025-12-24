@@ -6,6 +6,8 @@ import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const JWT_EXPIRY = '7d'; // Token expires in 7 days
+const ADMIN_MOBILE = process.env.ADMIN_MOBILE || '09337309575';
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'admin-secret-token';
 
 export async function POST(request: NextRequest) {
   try {
@@ -80,9 +82,12 @@ export async function POST(request: NextRequest) {
       .setExpirationTime(JWT_EXPIRY)
       .sign(new TextEncoder().encode(JWT_SECRET));
 
+    const isAdmin = mobile === ADMIN_MOBILE;
+
     const response = NextResponse.json({
       success: true,
       message: 'ورود موفق',
+      isAdmin,
       user: {
         id: user.id,
         mobile: user.mobile,
@@ -98,6 +103,16 @@ export async function POST(request: NextRequest) {
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/',
     });
+
+    if (isAdmin) {
+      response.cookies.set('admin_token', ADMIN_TOKEN, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60, // 7 days
+        path: '/',
+      });
+    }
 
     return response;
   } catch (error) {

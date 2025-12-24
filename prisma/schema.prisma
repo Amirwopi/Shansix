@@ -98,7 +98,7 @@ model LotterySettings {
 model Winner {
   id          String   @id @default(uuid())
   userId      String
-  lotteryCode String
+  lotteryCode String   @unique
   drawDate    DateTime @default(now())
   createdAt   DateTime @default(now())
 

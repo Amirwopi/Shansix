@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { generateTransactionId, generateLotteryCode } from '@/lib/utils';
 import { jwtVerify } from 'jose';
-import { Payment } from 'zarinpal-checkout';
+import ZarinPalCheckout from 'zarinpal-checkout';
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 
 // Initialize ZarinPal
-const zarinpal = Payment.create(
+const zarinpal = ZarinPalCheckout.create(
   process.env.ZARINPAL_MERCHANT_ID || '',
-  process.env.NODE_ENV !== 'production' // Sandbox mode for development
+  process.env.NODE_ENV !== 'production',
+  'IRT'
 );
 
 export async function POST(request: NextRequest) {
@@ -68,29 +69,22 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-      // Use zarinpal-checkout SDK to create payment request
-      const requestResponse = await zarinpal.request({
-        amount: amount,
-        currency: 'IRT',
-        description: 'شرکت در قرعه‌کشی آنلاین',
-        metadata: {
-          mobile: payload.mobile,
-          paymentId: payment.id,
-          userId: payload.userId,
-        },
-        callback_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/payment/verify`,
+      const requestResponse = await zarinpal.PaymentRequest({
+        Amount: amount.toString(),
+        CallbackURL: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/payment/verify`,
+        Description: 'شرکت در قرعه‌کشی آنلاین',
+        Mobile: (payload.mobile as string) || undefined,
       });
 
-      if (requestResponse.data.code === 100) {
-        const authority = requestResponse.data.authority;
+      if (requestResponse.status === 100) {
+        const authority = requestResponse.authority;
 
         await db.payment.update({
           where: { id: payment.id },
           data: { authority },
         });
 
-        // Generate payment URL using zarinpal-checkout SDK
-        const paymentUrl = zarinpal.createPaymentURL(authority);
+        const paymentUrl = requestResponse.url;
 
         return NextResponse.json({
           success: true,
@@ -107,7 +101,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            message: requestResponse.errors?.message || 'خطا در ایجاد درخواست پرداخت',
+            message: 'خطا در ایجاد درخواست پرداخت',
           },
           { status: 400 }
         );

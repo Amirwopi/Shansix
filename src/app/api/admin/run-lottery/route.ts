@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { drawLotteryWinners } from '@/lib/lottery';
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'admin-secret-token';
 
@@ -30,85 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get all valid lottery codes
-    const lotteryCodes = await db.lotteryCode.findMany({
-      where: {
-        winner: null, // Only codes that haven't won
-      },
-      include: {
-        user: true,
-      },
-    });
-
-    if (lotteryCodes.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'هیچ کد قرعه‌کشی‌ای وجود ندارد' },
-        { status: 400 }
-      );
-    }
-
-    if (lotteryCodes.length < settings.winnersCount) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: `تعداد کدهای کافی نیست (نیاز به ${settings.winnersCount} کد، وجود دارد ${lotteryCodes.length} کد)`,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Fisher-Yates shuffle for random selection
-    const shuffledCodes = [...lotteryCodes];
-    for (let i = shuffledCodes.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffledCodes[i], shuffledCodes[j]] = [shuffledCodes[j], shuffledCodes[i]];
-    }
-
-    // Select winners
-    const selectedWinners = shuffledCodes.slice(0, settings.winnersCount);
-
-    // Create winner records
-    const winners = [];
-    for (const winnerCode of selectedWinners) {
-      const winner = await db.winner.create({
-        data: {
-          userId: winnerCode.userId,
-          lotteryCode: winnerCode.code,
-          drawDate: new Date(),
-        },
-      });
-      winners.push(winner);
-
-      // TODO: Send SMS to winner using Melipayamak
-      // This should use the actual Melipayamak SDK
-      console.log(`Winner: ${winnerCode.user.mobile} - Code: ${winnerCode.code}`);
-
-      // Log the winner selection
-      await db.transactionLog.create({
-        data: {
-          userId: winnerCode.userId,
-          action: 'LOTTERY_WINNER_SELECTED',
-          details: `User ${winnerCode.user.mobile} won with code ${winnerCode.code}`,
-        },
-      });
-    }
-
-    // Update lottery settings to DRAWN
-    await db.lotterySettings.update({
-      where: { id: settings.id },
-      data: {
-        status: 'DRAWN',
-        drawDate: new Date(),
-      },
-    });
-
-    // Log the lottery draw
-    await db.transactionLog.create({
-      data: {
-        action: 'LOTTERY_DRAW_COMPLETED',
-        details: `Lottery draw completed with ${winners.length} winners selected from ${lotteryCodes.length} participants`,
-      },
-    });
+    const winners = await drawLotteryWinners({ sendSms: true, reason: 'MANUAL_ADMIN' });
 
     return NextResponse.json({
       success: true,

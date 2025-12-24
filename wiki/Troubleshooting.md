@@ -12,25 +12,26 @@
 
 **راه‌حل‌ها:**
 
-1. بررسی تنظیمات Melipayamak
+1. بررسی تنظیمات Faraz SMS
 ```bash
 # بررسی .env
-MELIPAYAMAK_USERNAME=your-username
-MELIPAYAMAK_PASSWORD=your-password
+FARAZ_API_KEY=your-api-key
+FARAZ_ORIGINATOR=5000...
+FARAZ_OTP_PATTERN_CODE=blrp83g66hrdc2n
 ```
 
-2. موجودی حساب Melipayamak
-   - به پنل Melipayamak بروید
+2. موجودی حساب Faraz SMS
+   - به پنل Faraz SMS بروید
    - موجودی حساب را بررسی کنید
    - اگر موجودی کم است، شارژ کنید
 
 3. بررسی کد الگو (Pattern Code)
-   - در پنل Melipayamak، کد الگوی OTP را بررسی کنید
+   - در پنل Faraz SMS، کد الگوی OTP را بررسی کنید
    - مطمئن شوید در فایل `.env` صحیح وارد شده
-   - الگو باید متغیر `{verificationCode}` را داشته باشد
+   - الگو باید متغیر `%code%` را داشته باشد
 
 4. شماره ارسال‌کننده
-   - شماره Sender Number در پنل Melipayamak را بررسی کنید
+   - شماره Originator/Sender در پنل Faraz SMS را بررسی کنید
    - مطمئن شوید شماره فعال است
    - شماره را در `.env` وارد کنید
 

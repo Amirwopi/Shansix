@@ -17,6 +17,7 @@ export default function LotteryHomePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [verified, setVerified] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const handleSendOTP = async () => {
     // Validate mobile number
@@ -89,10 +90,11 @@ export default function LotteryHomePage() {
 
       if (data.success) {
         setVerified(true);
-        setSuccess('ورود موفق! در حال انتقال به پنل کاربری...');
+        const admin = Boolean(data.isAdmin);
+        setIsAdmin(admin);
+        setSuccess(admin ? 'ورود ادمین موفق! در حال انتقال به پنل مدیریت...' : 'ورود موفق! در حال انتقال به پنل کاربری...');
         setTimeout(() => {
-          // Redirect to dashboard
-          window.location.href = '/dashboard';
+          window.location.href = admin ? '/admin' : '/dashboard';
         }, 2000);
       } else {
         setError(data.message || 'کد تایید نامعتبر است');
@@ -113,7 +115,7 @@ export default function LotteryHomePage() {
               <CheckCircle2 className="h-8 w-8 text-green-600" />
             </div>
             <CardTitle className="text-2xl">ورود موفق!</CardTitle>
-            <CardDescription>در حال انتقال به پنل کاربری...</CardDescription>
+            <CardDescription>{isAdmin ? 'در حال انتقال به پنل مدیریت...' : 'در حال انتقال به پنل کاربری...'}</CardDescription>
           </CardHeader>
         </Card>
       </div>

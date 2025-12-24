@@ -87,11 +87,11 @@ cp .env.example .env
 DATABASE_URL="file:./dev.db"
 JWT_SECRET="generate-secure-random-string"
 ADMIN_TOKEN="set-admin-token"
+ADMIN_MOBILE="09337309575"
 NEXT_PUBLIC_BASE_URL="http://localhost:3000"
-MELIPAYAMAK_USERNAME="your-username"
-MELIPAYAMAK_PASSWORD="your-password"
-MELIPAYAMAK_OTP_PATTERN_CODE="123456"
-MELIPAYAMAK_SENDER_NUMBER="5000..."
+FARAZ_API_KEY="your-api-key"
+FARAZ_ORIGINATOR="5000..."
+FARAZ_OTP_PATTERN_CODE="blrp83g66hrdc2n"
 ZARINPAL_MERCHANT_ID="your-merchant-id"
 NODE_ENV="development"
 ```
@@ -140,11 +140,11 @@ npm run dev
 | `DATABASE_URL` | آدرس دیتابیس SQLite | `file:./dev.db` |
 | `JWT_SECRET` | کلید رمزنگاری JWT | `random-64-char-string` |
 | `ADMIN_TOKEN` | توکن احراز هویت ادمین | `admin-secret-123` |
+| `ADMIN_MOBILE` | شماره موبایل ادمین (ورود خودکار به پنل مدیریت بعد از OTP) | `09337309575` |
 | `NEXT_PUBLIC_BASE_URL` | آدرس پایه اپلیکیشن | `https://your-domain.com` |
-| `MELIPAYAMAK_USERNAME` | نام کاربری ملی پیامک | `your_username` |
-| `MELIPAYAMAK_PASSWORD` | رمز عبور ملی پیامک | `your_password` |
-| `MELIPAYAMAK_OTP_PATTERN_CODE` | کد الگوی OTP | `123456` |
-| `MELIPAYAMAK_SENDER_NUMBER` | شماره ارسال‌کننده | `5000123456` |
+| `FARAZ_API_KEY` | کلید API فراز اس‌ام‌اس | `your-api-key` |
+| `FARAZ_ORIGINATOR` | شماره/سرشماره ارسال‌کننده | `5000123456` |
+| `FARAZ_OTP_PATTERN_CODE` | کد الگوی OTP | `blrp83g66hrdc2n` |
 | `ZARINPAL_MERCHANT_ID` | شناسه پذیرنده زرین‌پال | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 | `NODE_ENV` | محیط اجرا | `production` |
 

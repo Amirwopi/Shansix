@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { generateOTP, isValidIranianMobile } from '@/lib/utils';
-import Melipayamak from 'melipayamak';
+import { farazSendPattern, farazSMS } from '@aspianet/faraz-sms';
 
 const otpRateLimit = new Map<string, { count: number; lastSent: number }>();
 
 const OTP_EXPIRY_MINUTES = 2;
 const MAX_REQUESTS_PER_WINDOW = 3;
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 
-// Initialize Melipayamak SMS service
-const smsUsername = process.env.MELIPAYAMAK_USERNAME || '';
-const smsPassword = process.env.MELIPAYAMAK_PASSWORD || '';
-const smsApi = new Melipayamak(smsUsername, smsPassword);
+// Initialize FarazSMS
+const FARAZ_API_KEY = process.env.FARAZ_API_KEY || '';
+const FARAZ_ORIGINATOR = process.env.FARAZ_ORIGINATOR || '';
+const FARAZ_OTP_PATTERN_CODE = process.env.FARAZ_OTP_PATTERN_CODE || 'blrp83g66hrdc2n';
+
+if (FARAZ_API_KEY) {
+  farazSMS.init(FARAZ_API_KEY);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,8 +25,8 @@ export async function POST(request: NextRequest) {
 
     if (!mobile || !isValidIranianMobile(mobile)) {
       return NextResponse.json(
-        { success: false, message: 'شماره موبایل نامعتبر است' },
-        { status: 400 }
+          { success: false, message: 'شماره موبایل نامعتبر است' },
+          { status: 400 }
       );
     }
 
@@ -35,11 +39,11 @@ export async function POST(request: NextRequest) {
       if (timeSinceLastRequest < RATE_LIMIT_WINDOW_MS) {
         if (rateLimitData.count >= MAX_REQUESTS_PER_WINDOW) {
           return NextResponse.json(
-            {
-              success: false,
-              message: `لطفاً بعد از ${Math.ceil((RATE_LIMIT_WINDOW_MS - timeSinceLastRequest) / 1000)} ثانیه تلاش کنید`,
-            },
-            { status: 429 }
+              {
+                success: false,
+                message: `لطفاً بعد از ${Math.ceil((RATE_LIMIT_WINDOW_MS - timeSinceLastRequest) / 1000)} ثانیه تلاش کنید`,
+              },
+              { status: 429 }
           );
         }
         rateLimitData.count++;
@@ -77,33 +81,28 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send real SMS using Melipayamak SDK
+    // Send SMS using FarazSMS
     try {
-      const smsResult = await smsApi.sendByBaseNumber(
-        process.env.MELIPAYAMAK_OTP_PATTERN_CODE || '', // Pattern code in Melipayamak panel
+      if (!FARAZ_API_KEY || !FARAZ_ORIGINATOR) {
+        throw new Error('Faraz SMS is not configured: missing FARAZ_API_KEY or FARAZ_ORIGINATOR');
+      }
+
+      const smsResult = await farazSendPattern(
+        FARAZ_OTP_PATTERN_CODE,
+        FARAZ_ORIGINATOR,
         mobile,
-        [{ verificationCode: otp }] // Parameters for the pattern
+        { code: otp }
       );
 
       console.log('SMS sent successfully:', smsResult);
     } catch (smsError: any) {
       console.error('Error sending SMS:', smsError);
-      
-      // If pattern-based sending fails, try simple text SMS
-      try {
-        await smsApi.send(
-          mobile,
-          `کد تایید شما: ${otp}\nاین کد تا 2 دقیقه معتبر است.`,
-          process.env.MELIPAYAMAK_SENDER_NUMBER || ''
-        );
-        console.log('Fallback SMS sent successfully');
-      } catch (fallbackError) {
-        console.error('Fallback SMS also failed:', fallbackError);
-        // Still return success but log error for monitoring
-        // In production, you might want to handle this differently
-      }
+
+      // Still return success but log error for monitoring
+      // In production, you might want to handle this differently
     }
 
+    // Clean up expired OTPs older than 1 hour
     await db.oTP.deleteMany({
       where: {
         expiresAt: {
@@ -120,8 +119,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error sending OTP:', error);
     return NextResponse.json(
-      { success: false, message: 'خطا در ارسال کد تایید' },
-      { status: 500 }
+        { success: false, message: 'خطا در ارسال کد تایید' },
+        { status: 500 }
     );
   }
 }
@@ -134,4 +133,4 @@ setInterval(() => {
       otpRateLimit.delete(mobile);
     }
   }
-}, 5 * 60 * 1000);
+}, 5 * 60 * 1000); // Every 5 minutes

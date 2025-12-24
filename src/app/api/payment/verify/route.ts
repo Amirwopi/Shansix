@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { generateLotteryCode } from '@/lib/utils';
-import { Payment } from 'zarinpal-checkout';
+import { drawLotteryWinners } from '@/lib/lottery';
+import ZarinPalCheckout from 'zarinpal-checkout';
 
 // Initialize ZarinPal
-const zarinpal = Payment.create(
+const zarinpal = ZarinPalCheckout.create(
   process.env.ZARINPAL_MERCHANT_ID || '',
-  process.env.NODE_ENV !== 'production'
+  process.env.NODE_ENV !== 'production',
+  'IRT'
 );
 
 export async function GET(request: NextRequest) {
@@ -52,14 +54,14 @@ export async function GET(request: NextRequest) {
 
     // Payment status is OK - verify with ZarinPal
     try {
-      const verifyResponse = await zarinpal.verify({
-        amount: Number(payment.amount),
-        authority: authority,
+      const verifyResponse = await zarinpal.PaymentVerification({
+        Amount: payment.amount.toString(),
+        Authority: authority,
       });
 
-      if (verifyResponse.data.code === 100 || verifyResponse.data.code === 101) {
+      if (verifyResponse.status === 100 || verifyResponse.status === 101) {
         // Payment is successful
-        const refId = verifyResponse.data.ref_id.toString();
+        const refId = verifyResponse.RefID?.toString() || '';
 
         // Check if lottery code already exists for this payment
         const existingCode = await db.lotteryCode.findFirst({
@@ -133,9 +135,11 @@ export async function GET(request: NextRequest) {
               data: { status: 'CLOSED' },
             });
 
-            // TODO: Trigger automatic lottery draw
-            // This could be done via a cron job or immediate execution
-            console.log('Lottery capacity reached. Ready to draw winners.');
+            try {
+              await drawLotteryWinners({ sendSms: true, reason: 'AUTO_CAPACITY' });
+            } catch (drawError) {
+              console.error('Auto lottery draw failed:', drawError);
+            }
           }
         }
 
@@ -154,7 +158,7 @@ export async function GET(request: NextRequest) {
           data: {
             userId: payment.userId,
             action: 'PAYMENT_VERIFICATION_FAILED',
-            details: `Verification failed. Code: ${verifyResponse.data.code}, Authority: ${authority}`,
+            details: `Verification failed. Code: ${verifyResponse.status}, Authority: ${authority}`,
           },
         });
 
