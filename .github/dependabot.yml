@@ -1,13 +1,14 @@
 version: 2
 updates:
-  # Enable version updates for npm dependencies
+  # Main package dependencies
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "09:00"
-    open-pull-requests-limit: 10
+      timezone: "Asia/Tehran"
+    open-pull-requests-limit: 5
     reviewers:
       - "amirwopi"
     assignees:
@@ -18,28 +19,110 @@ updates:
       include: "scope"
     labels:
       - "dependencies"
-      - "npm"
-    ignore:
-      # Ignore updates for these packages
-      - dependency-name: "next"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "react"
-        update-types: ["version-update:semver-major"]
+      - "automated"
+    # Group updates together for easier review
     groups:
-      # Group updates by directory
+      # High-priority security updates
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+        exclude-patterns:
+          - "next*"
+        dependency-type: "direct"
+        automerged-semantic-commits: "true"
+        automerge: "true"
+        automerge-type: "pr"
+      # Major updates - require manual review
+      major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "version-update:semver-major"
+        exclude-patterns:
+          - "next"
+        dependency-type: "direct"
+      # Next.js and React - require manual review
+      framework-updates:
+        patterns:
+          - "next*"
+          - "react*"
+          - "react-dom*"
+        update-types:
+          - "version-update:semver-patch"
+          - "version-update:semver-minor"
+          - "version-update:semver-major"
+      # Development dependencies
       dev-dependencies:
         patterns:
           - "*"
         exclude-patterns:
           - "next*"
           - "react*"
+          - "prisma"
+        dependency-type: "development"
+        update-types:
+          - "version-update:semver-patch"
+          - "version-update:semver-minor"
+    # Ignore specific versions that may break
+    ignore:
+      # Next.js major version bumps require migration
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      # React major updates require breaking changes handling
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      # Prisma major updates require migration
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "prisma"
+        update-types: ["version-update:semver-major"]
+      # Security libraries - manual review only
+      - dependency-name: "jose"
+        update-types: ["version-update:semver-major"]
 
-  # Enable GitHub Actions updates
+  # GitHub Actions updates
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directory: ".github/workflows"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+      day: "monday"
+      time: "10:00"
+      timezone: "Asia/Tehran"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "amirwopi"
     labels:
       - "github-actions"
+      - "automated"
       - "dependencies"
+    groups:
+      major-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "version-update:semver-major"
+
+  # Docker updates (if needed in future)
+  # - package-ecosystem: "docker"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "monthly"
+  #   open-pull-requests-limit: 2
+  #   labels:
+  #     - "docker"
+  #     - "dependencies"
+
+# Global configuration
+registries:
+  - type: "npm-registry"
+    url: "https://registry.npmjs.org"
+    token: ${{ secrets.GITHUB_TOKEN }}
+
+# Allow Dependabot to create pull requests
+allow:
+  - dependency-type: "all"
