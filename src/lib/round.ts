@@ -24,6 +24,14 @@ export async function getOrCreateActiveRound() {
     return { round: existingOpenRound, settings };
   }
 
+  const latestRound = await db.lotteryRound.findFirst({
+    orderBy: { startedAt: 'desc' },
+  });
+
+  if (latestRound) {
+    return { round: latestRound, settings };
+  }
+
   const nextNumber = await getNextRoundNumber();
   const created = await db.lotteryRound.create({
     data: {

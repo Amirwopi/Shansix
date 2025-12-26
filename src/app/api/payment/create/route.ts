@@ -51,6 +51,13 @@ export async function POST(request: NextRequest) {
 
     const { round } = await getOrCreateActiveRound();
 
+    if (round.status !== 'OPEN') {
+      return NextResponse.json(
+        { success: false, message: 'قرعه‌کشی بسته شده است' },
+        { status: 400 }
+      );
+    }
+
     const totalCodes = await db.lotteryCode.count({
       where: { roundId: round.id },
     });

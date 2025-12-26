@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -55,6 +57,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Vazirmatn', sans-serif;
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
   }
 }
 
@@ -114,4 +119,16 @@
 
 .animate-slide-in {
   animation: slideIn 0.3s ease-out;
+}
+
+@keyframes gradientBG {
+	0% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+	100% {
+		background-position: 0% 50%;
+	}
 }

@@ -167,57 +167,34 @@ export default function HomeClient() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/5 via-background to-primary/5">
-      <header className="border-b bg-white/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Shield className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-bold">سیستم قرعه‌کشی آنلاین</h1>
+    <div className="min-h-screen w-full bg-background">
+      <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen">
+        <div className="flex flex-col items-center justify-center p-8 lg:p-12 order-2 lg:order-1">
+          <div className="w-full max-w-md space-y-8">
+            <div className="text-center">
+                <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl">
+                    ورود یا ثبت‌نام
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                    برای شرکت در قرعه‌کشی، شماره موبایل خود را وارد کنید
+                </p>
             </div>
-            <nav className="flex gap-4 text-sm">
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                قوانین
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                راهنما
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                تماس با ما
-              </a>
-            </nav>
-          </div>
-        </div>
-      </header>
 
-      <main className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md animate-fade-in">
-          <CardHeader className="space-y-2 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-              <Smartphone className="h-8 w-8 text-primary" />
-            </div>
-            <CardTitle className="text-2xl">ورود / ثبت‌نام</CardTitle>
-            <CardDescription>
-              با شماره موبایل ایرانی خود وارد شوید و در قرعه‌کشی شرکت کنید
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent>
             {error && (
-              <Alert variant="destructive" className="mb-4">
+              <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
             {success && (
-              <Alert className="mb-4 border-green-200 bg-green-50 text-green-800">
+              <Alert className="border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
                 <AlertDescription>{success}</AlertDescription>
               </Alert>
             )}
 
-            <Tabs defaultValue="mobile" className="w-full">
+            <Tabs defaultValue="mobile" value={otpSent ? 'otp' : 'mobile'} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="mobile">
+                <TabsTrigger value="mobile" onClick={() => setOtpSent(false)}>
                   <User className="ml-2 h-4 w-4" />
                   شماره موبایل
                 </TabsTrigger>
@@ -227,7 +204,7 @@ export default function HomeClient() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="mobile" className="space-y-4 mt-4">
+              <TabsContent value="mobile" className="space-y-6 pt-6">
                 <div className="space-y-2">
                   <label htmlFor="mobile" className="text-sm font-medium">
                     شماره موبایل
@@ -239,92 +216,92 @@ export default function HomeClient() {
                     value={mobile}
                     onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 11))}
                     maxLength={11}
-                    className="text-left dir-ltr"
+                    className="text-lg text-left dir-ltr"
                     disabled={loading}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    شماره موبایل باید با 09 شروع شده و 11 رقم باشد
-                  </p>
                 </div>
 
                 <Button
                   onClick={handleSendOTP}
                   disabled={loading || mobile.length !== 11}
-                  className="w-full"
+                  className="w-full text-lg py-6"
                 >
                   {loading ? 'در حال ارسال...' : 'ارسال کد تایید'}
                 </Button>
               </TabsContent>
 
-              <TabsContent value="otp" className="space-y-4 mt-4">
-                <div className="space-y-2">
+              <TabsContent value="otp" className="space-y-6 pt-6">
+                <div className="space-y-2 text-center">
                   <label htmlFor="otp" className="text-sm font-medium">
-                    کد تایید
+                    کد تایید ۶ رقمی را وارد کنید
                   </label>
                   <Input
                     id="otp"
                     type="text"
-                    placeholder="123456"
+                    placeholder="- - - - - -"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     maxLength={6}
-                    className="text-center text-2xl tracking-widest"
+                    className="text-center text-3xl tracking-[1.5rem] font-semibold dir-ltr bg-transparent"
                     disabled={loading}
                   />
-                  <p className="text-xs text-muted-foreground text-center">کد 6 رقمی ارسال شده به {mobile}</p>
+                   <p className="text-xs text-muted-foreground text-center pt-2">کد ارسال شده به {mobile}</p>
                 </div>
 
                 <Button
                   onClick={handleVerifyOTP}
                   disabled={loading || otp.length !== 6}
-                  className="w-full"
+                  className="w-full text-lg py-6"
                 >
                   {loading ? 'در حال بررسی...' : 'تایید و ورود'}
                 </Button>
 
+                <div className="text-center text-sm">
                 {countdown > 0 ? (
-                  <p className="text-xs text-center text-muted-foreground">
-                    ارسال مجدد کد تا {countdown} ثانیه دیگر امکان‌پذیر است
+                  <p className="text-muted-foreground">
+                    ارسال مجدد کد تا {countdown} ثانیه دیگر
                   </p>
                 ) : (
                   <Button
-                    variant="ghost"
+                    variant="link"
                     onClick={handleSendOTP}
                     disabled={loading}
-                    className="w-full text-sm"
+                    className="p-0 h-auto"
                   >
                     ارسال مجدد کد
                   </Button>
                 )}
-
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setOtpSent(false);
-                    setOtp('');
-                    setError('');
-                  }}
-                  className="w-full text-sm"
-                >
-                  تغییر شماره موبایل
-                </Button>
+                </div>
               </TabsContent>
             </Tabs>
-          </CardContent>
-        </Card>
-      </main>
-
-      <footer className="border-t bg-white/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col items-center justify-between gap-2 text-center text-sm text-muted-foreground md:flex-row">
-            <p>© ۱۴۰۳ سیستم قرعه‌کشی آنلاین. تمامی حقوق محفوظ است.</p>
-            <p className="flex items-center gap-1">
-              <Shield className="h-4 w-4" />
-              امنیت و محرمانگی اطلاعات شما تضمین شده است
-            </p>
           </div>
         </div>
-      </footer>
+        <div className="hidden lg:flex flex-col items-center justify-center p-8 lg:p-12 bg-muted/40 order-1 lg:order-2 border-r">
+            <div className="w-full max-w-md space-y-8 text-center">
+                <div className="flex justify-center">
+                    <Shield className="h-16 w-16 text-primary" />
+                </div>
+                <h2 className="text-3xl font-bold tracking-tighter">
+                    به دنیای شانس خوش آمدید
+                </h2>
+                <p className="text-muted-foreground">
+                    سیستم قرعه‌کشی آنلاین ما با بهره‌گیری از جدیدترین تکنولوژی‌ها، تجربه‌ای امن، شفاف و هیجان‌انگیز را برای شما به ارمغان می‌آورد.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                    <div className="p-4 rounded-lg bg-background/50 text-center">
+                        <CheckCircle2 className="h-8 w-8 text-primary mx-auto mb-2" />
+                        <h3 className="font-semibold">امن و مطمئن</h3>
+                        <p className="text-sm text-muted-foreground">ورود با کد یکبار مصرف</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-background/50 text-center">
+                        <User className="h-8 w-8 text-primary mx-auto mb-2" />
+                        <h3 className="font-semibold">قرعه‌کشی شفاف</h3>
+                        <p className="text-sm text-muted-foreground">نتایج قابل استعلام</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
     </div>
   );
 }
