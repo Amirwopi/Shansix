@@ -137,6 +137,20 @@ model LotteryRound {
   @@map("lottery_rounds")
 }
 
+model DashboardBannerItem {
+  id          String   @id @default(uuid())
+  imageUrl    String
+  topText     String?
+  bottomText  String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+  @@map("dashboard_banner_items")
+}
+
 // TransactionLog model for audit logging
 model TransactionLog {
   id          String   @id @default(uuid())
