@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 
-export async function POST() {
-  const response = NextResponse.json({ success: true });
-
+function buildLogoutResponse(response: NextResponse) {
   response.cookies.set('auth_token', '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -22,4 +20,14 @@ export async function POST() {
   });
 
   return response;
+}
+
+export async function POST() {
+  const response = NextResponse.json({ success: true });
+  return buildLogoutResponse(response);
+}
+
+export async function GET(request: Request) {
+  const response = NextResponse.redirect(new URL('/', request.url));
+  return buildLogoutResponse(response);
 }
