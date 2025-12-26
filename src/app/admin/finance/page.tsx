@@ -41,24 +41,101 @@ interface FinanceData {
   }>;
 }
 
-function SimpleBarChart({ values }: { values: Array<{ label: string; value: number }> }) {
-  const max = Math.max(1, ...values.map((v) => v.value));
+function roundUpNiceMax(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return 1;
+  const pow = Math.pow(10, Math.floor(Math.log10(value)));
+  const n = value / pow;
+  const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+  return nice * pow;
+}
+
+function formatToman(value: number) {
+  return `${value.toLocaleString('fa-IR')} تومان`;
+}
+
+function BarChart({ values }: { values: Array<{ label: string; value: number }> }) {
+  const [hovered, setHovered] = useState<{ label: string; value: number } | null>(null);
+
+  const { max, ticks } = useMemo(() => {
+    const rawMax = Math.max(1, ...values.map((v) => v.value));
+    const max = roundUpNiceMax(rawMax);
+    const steps = 4;
+    const ticks = Array.from({ length: steps + 1 }, (_, i) => (max / steps) * i);
+    return { max, ticks };
+  }, [values]);
 
   return (
-      <div className="w-full">
-        <div className="flex items-end gap-2 h-64">
-          {values.map((v) => (
-              <div key={v.label} className="flex-1 flex flex-col items-center gap-2">
-                <div
-                    className="w-full rounded-t-md bg-primary transition-all duration-300 ease-in-out hover:bg-primary/80"
-                    style={{ height: `${Math.round((v.value / max) * 100)}%` }}
-                    title={`${v.label}: ${v.value.toLocaleString('fa-IR')} تومان`}
-                />
-                <div className="text-xs text-muted-foreground truncate w-full text-center">{v.label}</div>
+    <div className="w-full">
+      <div className="relative w-full overflow-x-auto">
+        <div className="min-w-[520px]">
+          <div className="flex gap-4">
+            <div className="w-16 shrink-0">
+              <div className="flex h-72 flex-col justify-between">
+                {ticks
+                  .slice()
+                  .reverse()
+                  .map((t) => (
+                    <div key={t} className="text-xs text-muted-foreground">
+                      {t === 0 ? '0' : t.toLocaleString('fa-IR')}
+                    </div>
+                  ))}
               </div>
-          ))}
+            </div>
+
+            <div className="relative flex-1">
+              {ticks.map((t) => (
+                <div
+                  key={t}
+                  className="absolute left-0 right-0 border-t border-border/60"
+                  style={{ bottom: `${(t / max) * 100}%` }}
+                />
+              ))}
+
+              <div className="relative flex h-72 items-end gap-3">
+                {values.map((v) => {
+                  const pct = Math.max(0, Math.min(100, (v.value / max) * 100));
+                  const isActive = hovered?.label === v.label;
+                  return (
+                    <div key={v.label} className="flex-1">
+                      <div className="flex flex-col items-center gap-2">
+                        <button
+                          type="button"
+                          className="relative w-full"
+                          onMouseEnter={() => setHovered(v)}
+                          onMouseLeave={() => setHovered((cur) => (cur?.label === v.label ? null : cur))}
+                          onFocus={() => setHovered(v)}
+                          onBlur={() => setHovered((cur) => (cur?.label === v.label ? null : cur))}
+                          aria-label={`${v.label}: ${formatToman(v.value)}`}
+                        >
+                          <div
+                            className={
+                              "w-full rounded-t-md bg-primary/90 transition-all duration-300 ease-in-out hover:bg-primary " +
+                              (isActive ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : '')
+                            }
+                            style={{ height: `${pct}%` }}
+                          />
+
+                          {isActive ? (
+                            <div className="pointer-events-none absolute -top-12 left-1/2 z-10 w-max -translate-x-1/2 rounded-md border bg-background px-3 py-2 text-xs shadow-sm">
+                              <div className="font-medium">{v.label}</div>
+                              <div className="text-muted-foreground">{formatToman(v.value)}</div>
+                            </div>
+                          ) : null}
+                        </button>
+
+                        <div className="w-full truncate text-center text-xs text-muted-foreground">
+                          {v.label}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+    </div>
   );
 }
 
@@ -194,7 +271,7 @@ export default function FinancePage() {
             {chartValues.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground">داده‌ای برای نمایش در این بازه زمانی وجود ندارد</div>
             ) : (
-                <SimpleBarChart values={chartValues} />
+                <BarChart values={chartValues} />
             )}
           </CardContent>
         </Card>
