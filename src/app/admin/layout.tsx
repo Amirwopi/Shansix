@@ -52,21 +52,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               </Link>
             </nav>
           </div>
-          <div className="mt-auto p-4">
-            <Card>
-              <CardHeader className="p-2 pt-0 md:p-4">
-                <CardTitle>راهنما</CardTitle>
-                <CardDescription>
-                  در صورت نیاز به راهنمایی بیشتر، از این بخش استفاده کنید.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-2 pt-0 md:p-4 md:pt-0">
-                <Button size="sm" className="w-full">
-                  راهنما
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </div>
       <div className="flex flex-col">

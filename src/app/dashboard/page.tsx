@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Ticket, Clock, Users, CheckCircle2, CreditCard } from 'lucide-react';
+import { DashboardTour } from '@/components/dashboard-tour';
 
 // Interfaces and types remain the same
 interface LotteryData {
@@ -35,6 +36,45 @@ export default function DashboardPage() {
   const [data, setData] = useState<LotteryData | null>(null);
   const [error, setError] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
+
+  const tourSteps = [
+    {
+      id: 'dashboard-status',
+      title: 'وضعیت قرعه‌کشی',
+      description:
+        'این بخش وضعیت دوره فعلی را نشان می‌دهد (باز/بسته/قرعه‌کشی شده).\nاگر وضعیت «باز» باشد می‌توانید شرکت کنید.',
+    },
+    {
+      id: 'dashboard-capacity',
+      title: 'ظرفیت و تعداد شرکت‌کنندگان',
+      description:
+        'اینجا میزان تکمیل ظرفیت دوره را می‌بینید.\nهرچه به ظرفیت نزدیک‌تر شود، شانس تکمیل سریع‌تر دوره بیشتر است.',
+    },
+    {
+      id: 'dashboard-price',
+      title: 'هزینه شرکت',
+      description:
+        'هزینه ورود به دوره فعلی از طریق درگاه پرداخت امن انجام می‌شود.',
+    },
+    {
+      id: 'dashboard-cta',
+      title: 'دکمه شرکت در قرعه‌کشی',
+      description:
+        'با زدن این دکمه به درگاه پرداخت منتقل می‌شوید.\nپس از پرداخت موفق، کد قرعه‌کشی شما صادر می‌شود.',
+    },
+    {
+      id: 'dashboard-codes',
+      title: 'کدهای قرعه‌کشی شما',
+      description:
+        'کدهای صادر شده برای شما در همین بخش نمایش داده می‌شود.\nهر کد یک شانس برای برنده شدن است.',
+    },
+    {
+      id: 'dashboard-payments',
+      title: 'سوابق پرداخت',
+      description:
+        'این بخش تاریخچه تراکنش‌های شما را نشان می‌دهد.\nاگر پرداختی «ناموفق» بود، معمولاً مبلغ توسط بانک برگشت می‌خورد.',
+    },
+  ] as const;
 
   useEffect(() => {
     fetchDashboardData();
@@ -129,6 +169,13 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="text-lg font-semibold">پنل کاربری</div>
+        <div data-tour-id="dashboard-help">
+          <DashboardTour steps={tourSteps as any} />
+        </div>
+      </div>
+
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
@@ -174,7 +221,7 @@ export default function DashboardPage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-3">
-          <Card>
+          <Card data-tour-id="dashboard-status">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">وضعیت قرعه‌کشی</CardTitle>
                   <Clock className="h-4 w-4 text-muted-foreground" />
@@ -186,7 +233,7 @@ export default function DashboardPage() {
                   </p>
               </CardContent>
           </Card>
-          <Card>
+          <Card data-tour-id="dashboard-capacity">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">ظرفیت</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
@@ -196,7 +243,7 @@ export default function DashboardPage() {
                   <p className="text-xs text-muted-foreground">{((data.participants / data.capacity) * 100).toFixed(1)}% تکمیل شده</p>
               </CardContent>
           </Card>
-          <Card>
+          <Card data-tour-id="dashboard-price">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">هزینه شرکت</CardTitle>
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
@@ -209,7 +256,7 @@ export default function DashboardPage() {
       </div>
 
       {data.lotteryStatus === 'OPEN' && (
-          <Card>
+          <Card data-tour-id="dashboard-cta">
               <CardHeader>
                   <CardTitle>شانس خود را امتحان کنید!</CardTitle>
                   <CardDescription>با پرداخت هزینه، یک کد قرعه‌کشی منحصر به فرد دریافت خواهید کرد.</CardDescription>
@@ -224,7 +271,7 @@ export default function DashboardPage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-          <Card>
+          <Card data-tour-id="dashboard-codes">
               <CardHeader>
                   <CardTitle>کدهای قرعه‌کشی شما</CardTitle>
               </CardHeader>
@@ -243,7 +290,7 @@ export default function DashboardPage() {
                   )}
               </CardContent>
           </Card>
-          <Card>
+          <Card data-tour-id="dashboard-payments">
               <CardHeader>
                   <CardTitle>سوابق پرداخت</CardTitle>
               </CardHeader>

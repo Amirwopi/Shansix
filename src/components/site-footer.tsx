@@ -9,7 +9,27 @@ export function SiteFooter() {
         <div className="grid gap-8 md:grid-cols-4">
           <div className="space-y-2">
             <div className="text-sm font-semibold">کپی‌رایت</div>
-            <div className="text-sm text-muted-foreground">© سال 1405-1406</div>
+            <div className="text-sm text-muted-foreground">© 1405-1406 — تمامی حقوق این سامانه محفوظ است.</div>
+            <div className="text-xs text-muted-foreground">
+              توسعه‌دهنده:{' '}
+              <a
+                href="https://github.com/Amirwopi"
+                target="_blank"
+                rel="noreferrer"
+                className="text-foreground/90 hover:text-foreground underline underline-offset-4"
+              >
+                Amirwopi
+              </a>
+              <span className="mx-2 text-muted-foreground/60">|</span>
+              <a
+                href="https://github.com/amirwopi"
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                github.com/Amirwopi
+              </a>
+            </div>
           </div>
 
           <div className="space-y-3">
