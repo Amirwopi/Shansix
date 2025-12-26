@@ -8,13 +8,16 @@ function isAuthorized(request: NextRequest) {
   return token === ADMIN_TOKEN;
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     if (!isAuthorized(request)) {
       return NextResponse.json({ success: false, message: 'دسترسی غیرمجاز' }, { status: 401 });
     }
 
-    const id = params.id;
+    const { id } = await params;
     if (!id) {
       return NextResponse.json({ success: false, message: 'شناسه نامعتبر است' }, { status: 400 });
     }
@@ -77,13 +80,16 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     if (!isAuthorized(request)) {
       return NextResponse.json({ success: false, message: 'دسترسی غیرمجاز' }, { status: 401 });
     }
 
-    const id = params.id;
+    const { id } = await params;
     if (!id) {
       return NextResponse.json({ success: false, message: 'شناسه نامعتبر است' }, { status: 400 });
     }

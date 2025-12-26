@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
           where: { paymentId: payment.id },
         });
 
-        let lotteryCodeValue: string;
+        let lotteryCodeValue = '';
 
         if (existingCode) {
           lotteryCodeValue = existingCode.code;
@@ -129,25 +129,27 @@ export async function GET(request: NextRequest) {
         });
 
         // Check if capacity is reached and trigger lottery
-        const round = await db.lotteryRound.findUnique({
-          where: { id: payment.roundId },
-        });
-
-        if (round) {
-          const totalCodes = await db.lotteryCode.count({
-            where: { roundId: round.id },
+        if (payment.roundId) {
+          const round = await db.lotteryRound.findUnique({
+            where: { id: payment.roundId },
           });
 
-          if (totalCodes >= round.capacity && round.status === 'OPEN') {
-            await db.lotteryRound.update({
-              where: { id: round.id },
-              data: { status: 'CLOSED', closedAt: new Date() },
+          if (round) {
+            const totalCodes = await db.lotteryCode.count({
+              where: { roundId: round.id },
             });
 
-            try {
-              await drawLotteryWinners({ sendSms: true, reason: 'AUTO_CAPACITY', roundId: round.id });
-            } catch (drawError) {
-              console.error('Auto lottery draw failed:', drawError);
+            if (totalCodes >= round.capacity && round.status === 'OPEN') {
+              await db.lotteryRound.update({
+                where: { id: round.id },
+                data: { status: 'CLOSED', closedAt: new Date() },
+              });
+
+              try {
+                await drawLotteryWinners({ sendSms: true, reason: 'AUTO_CAPACITY', roundId: round.id });
+              } catch (drawError) {
+                console.error('Auto lottery draw failed:', drawError);
+              }
             }
           }
         }

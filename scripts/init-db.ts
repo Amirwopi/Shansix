@@ -32,7 +32,7 @@ async function initializeDatabase() {
           where: { id: existingSettings.id },
           data: {
             capacity: 1000,
-            entryPrice: 50000n,
+            entryPrice: 50000,
             winnersCount: 1,
             status: 'OPEN',
           },
@@ -49,7 +49,7 @@ async function initializeDatabase() {
       await db.lotterySettings.create({
         data: {
           capacity: 1000,
-          entryPrice: 50000n,
+          entryPrice: 50000,
           winnersCount: 1,
           status: 'OPEN',
         },

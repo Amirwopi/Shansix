@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/payment/result?success=false&message=اطلاعات پرداخت نامعتبر است`);
   }
 
-  const payment = await db.payment.findUnique({
+  const payment = await db.payment.findFirst({
     where: { authority },
   });
 
