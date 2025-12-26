@@ -24,15 +24,39 @@ import {
 } from 'lucide-react';
 
 interface AdminData {
+  rounds: Array<{
+    id: string;
+    number: number;
+    status: 'OPEN' | 'CLOSED' | 'DRAWN' | string;
+    startedAt: string;
+    closedAt?: string | null;
+    drawDate?: string | null;
+    capacity: number;
+    entryPrice: number;
+    winnersCount: number;
+  }>;
+  selectedRound: {
+    id: string;
+    number: number;
+    status: 'OPEN' | 'CLOSED' | 'DRAWN' | string;
+    startedAt: string;
+    closedAt?: string | null;
+    drawDate?: string | null;
+    capacity: number;
+    entryPrice: number;
+    winnersCount: number;
+  } | null;
   users: Array<{
     id: string;
     mobile: string;
     isActive: boolean;
+    successfulPurchases: number;
     createdAt: string;
   }>;
   payments: Array<{
     id: string;
     userId: string;
+    roundId: string;
     amount: number;
     status: string;
     refId?: string;
@@ -42,13 +66,18 @@ interface AdminData {
     id: string;
     code: string;
     userId: string;
+    roundId: string;
+    userMobile: string;
     createdAt: string;
   }>;
   winners: Array<{
     id: string;
     userId: string;
+    roundId: string;
+    userMobile: string;
     lotteryCode: string;
     drawDate: string;
+    prizeAmount: number;
   }>;
   settings: {
     capacity: number;
@@ -66,6 +95,7 @@ export default function AdminPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedRoundId, setSelectedRoundId] = useState<string>('');
 
   useEffect(() => {
     fetchAdminData();
@@ -74,10 +104,15 @@ export default function AdminPage() {
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin');
+      const query = selectedRoundId ? `?roundId=${encodeURIComponent(selectedRoundId)}` : '';
+      const response = await fetch(`/api/admin${query}`);
       if (response.ok) {
         const result = await response.json();
         setData(result);
+
+        if (!selectedRoundId && result?.selectedRound?.id) {
+          setSelectedRoundId(result.selectedRound.id);
+        }
       } else if (response.status === 401) {
         window.location.href = '/';
       } else {
@@ -102,6 +137,7 @@ export default function AdminPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ roundId: data?.selectedRound?.id || undefined }),
       });
 
       const result = await response.json();
@@ -111,6 +147,39 @@ export default function AdminPage() {
         fetchAdminData();
       } else {
         alert(result.message || 'خطا در انجام قرعه‌کشی');
+      }
+    } catch (err) {
+      alert('خطا در ارتباط با سرور');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResetLottery = async () => {
+    if (
+      !confirm(
+        'این عملیات یک دوره (Round) جدید ایجاد می‌کند و از این به بعد خریدهای جدید داخل دوره جدید ثبت می‌شوند. آیا مطمئن هستید؟'
+      )
+    ) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const response = await fetch('/api/admin/reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('دوره جدید با موفقیت ثبت شد');
+        fetchAdminData();
+      } else {
+        alert(result.message || 'خطا در ثبت دوره جدید');
       }
     } catch (err) {
       alert('خطا در ارتباط با سرور');
@@ -201,9 +270,16 @@ export default function AdminPage() {
     }
   };
 
-  const handleLogout = () => {
-    document.cookie = 'admin_token=; path=/; max-age=0';
-    window.location.href = '/';
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+    } catch (err) {
+      // noop
+    } finally {
+      window.location.href = '/';
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -275,6 +351,16 @@ export default function AdminPage() {
               <h1 className="text-xl font-bold">پنل مدیریت - سیستم قرعه‌کشی</h1>
             </div>
             <div className="flex items-center gap-4">
+              <Badge variant="outline">
+                دوره جاری: #{(data.selectedRound?.number ?? 0).toLocaleString('fa-IR')}
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => (window.location.href = '/admin/finance')}
+              >
+                گزارش مالی
+              </Button>
               <Button variant="outline" size="sm" onClick={fetchAdminData}>
                 <RefreshCw className="ml-2 h-4 w-4" />
                 بروزرسانی
@@ -329,7 +415,7 @@ export default function AdminPage() {
             <CardContent>
               <div className="text-2xl font-bold">{data.lotteryCodes.length.toLocaleString('fa-IR')}</div>
               <p className="text-xs text-muted-foreground">
-                {data.lotteryCodes.length.toLocaleString('fa-IR')} / {data.settings.capacity.toLocaleString('fa-IR')}
+                {data.lotteryCodes.length.toLocaleString('fa-IR')} / {(data.selectedRound?.capacity ?? data.settings.capacity).toLocaleString('fa-IR')}
               </p>
             </CardContent>
           </Card>
@@ -355,7 +441,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
-              {data.settings.status === 'OPEN' && (
+              {(data.selectedRound?.status === 'OPEN' || data.selectedRound?.status === 'CLOSED') && (
                 <Button
                   onClick={handleRunLottery}
                   disabled={actionLoading || data.lotteryCodes.length === 0}
@@ -367,6 +453,14 @@ export default function AdminPage() {
               <Button variant="outline" onClick={handleUpdateSettings}>
                 <Settings className="ml-2 h-4 w-4" />
                 تنظیمات قرعه‌کشی
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleResetLottery}
+                disabled={actionLoading}
+              >
+                <Trash2 className="ml-2 h-4 w-4" />
+                {actionLoading ? 'در حال انجام...' : 'ثبت دوره جدید'}
               </Button>
               <Button variant="outline" onClick={handleExportExcel}>
                 <Download className="ml-2 h-4 w-4" />
@@ -397,23 +491,27 @@ export default function AdminPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">وضعیت</p>
-                      <div className="text-lg font-semibold mt-1">{getStatusBadge(data.settings.status)}</div>
+                      <div className="text-lg font-semibold mt-1">
+                        {getStatusBadge(data.selectedRound?.status ?? data.settings.status)}
+                      </div>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">ظرفیت</p>
                       <p className="text-lg font-semibold mt-1">
-                        {data.lotteryCodes.length.toLocaleString('fa-IR')} / {data.settings.capacity.toLocaleString('fa-IR')}
+                        {data.lotteryCodes.length.toLocaleString('fa-IR')} / {(data.selectedRound?.capacity ?? data.settings.capacity).toLocaleString('fa-IR')}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">هزینه شرکت</p>
                       <p className="text-lg font-semibold mt-1">
-                        {data.settings.entryPrice.toLocaleString('fa-IR')} تومان
+                        {(data.selectedRound?.entryPrice ?? data.settings.entryPrice).toLocaleString('fa-IR')} تومان
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">تعداد برندگان</p>
-                      <p className="text-lg font-semibold mt-1">{data.settings.winnersCount.toLocaleString('fa-IR')}</p>
+                      <p className="text-lg font-semibold mt-1">
+                        {(data.selectedRound?.winnersCount ?? data.settings.winnersCount).toLocaleString('fa-IR')}
+                      </p>
                     </div>
                   </div>
 
@@ -422,11 +520,21 @@ export default function AdminPage() {
                     <div className="w-full bg-secondary rounded-full h-4">
                       <div
                         className="bg-primary h-4 rounded-full transition-all"
-                        style={{ width: `${(data.lotteryCodes.length / data.settings.capacity) * 100}%` }}
+                        style={{
+                          width: `${
+                            (data.lotteryCodes.length /
+                              (data.selectedRound?.capacity ?? data.settings.capacity)) *
+                            100
+                          }%`,
+                        }}
                       ></div>
                     </div>
                     <p className="text-sm mt-2 text-center">
-                      {((data.lotteryCodes.length / data.settings.capacity) * 100).toFixed(1)}% تکمیل شده
+                      {(
+                        (data.lotteryCodes.length /
+                          (data.selectedRound?.capacity ?? data.settings.capacity)) *
+                        100
+                      ).toFixed(1)}% تکمیل شده
                     </p>
                   </div>
                 </div>
@@ -479,6 +587,9 @@ export default function AdminPage() {
                           ) : (
                             <Badge className="bg-gray-100 text-gray-800">غیرفعال</Badge>
                           )}
+                          <span className="text-xs text-muted-foreground">
+                            خرید موفق: {user.successfulPurchases.toLocaleString('fa-IR')}
+                          </span>
                         </div>
                       </div>
                     ))
@@ -558,7 +669,10 @@ export default function AdminPage() {
                             {new Date(code.createdAt).toLocaleString('fa-IR')}
                           </p>
                         </div>
-                        <Badge variant="outline">معتبر</Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">معتبر</Badge>
+                          <span className="text-xs text-muted-foreground">{code.userMobile}</span>
+                        </div>
                       </div>
                     ))
                   )}
@@ -598,6 +712,7 @@ export default function AdminPage() {
                             <p className="font-semibold text-lg">
                               برنده {index + 1}
                             </p>
+                            <p className="font-mono text-sm text-muted-foreground">{winner.userMobile}</p>
                             <p className="font-mono text-sm text-muted-foreground">
                               کد: {winner.lotteryCode}
                             </p>

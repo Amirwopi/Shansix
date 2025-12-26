@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { generateTransactionId, generateLotteryCode } from '@/lib/utils';
+import { generateTransactionId } from '@/lib/utils';
 import { jwtVerify } from 'jose';
 import ZarinPalCheckout from 'zarinpal-checkout';
+import { getOrCreateActiveRound } from '@/lib/round';
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 
@@ -48,8 +49,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const totalCodes = await db.lotteryCode.count();
-    if (totalCodes >= settings.capacity) {
+    const { round } = await getOrCreateActiveRound();
+
+    const totalCodes = await db.lotteryCode.count({
+      where: { roundId: round.id },
+    });
+    if (totalCodes >= round.capacity) {
       return NextResponse.json(
         { success: false, message: 'ظرفیت قرعه‌کشی تکمیل شده است' },
         { status: 400 }
@@ -61,6 +66,7 @@ export async function POST(request: NextRequest) {
     const payment = await db.payment.create({
       data: {
         userId: payload.userId as string,
+        roundId: round.id,
         amount: BigInt(amount),
         status: 'PENDING',
         transactionId,

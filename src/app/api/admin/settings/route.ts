@@ -48,13 +48,56 @@ export async function PATCH(request: NextRequest) {
     const existing = await db.lotterySettings.findFirst();
 
     if (!existing) {
-      const created = await db.lotterySettings.create({
-        data: {
-          capacity,
-          entryPrice: BigInt(entryPrice),
-          winnersCount,
-          status: status || 'OPEN',
-        },
+      const created = await db.$transaction(async (tx) => {
+        const createdSettings = await tx.lotterySettings.create({
+          data: {
+            capacity,
+            entryPrice: BigInt(entryPrice),
+            winnersCount,
+            status: status || 'OPEN',
+            drawDate: null,
+          },
+        });
+
+        const activeRound = await tx.lotteryRound.findFirst({
+          where: { status: 'OPEN' },
+          orderBy: { startedAt: 'desc' },
+        });
+
+        if (activeRound) {
+          await tx.lotteryRound.update({
+            where: { id: activeRound.id },
+            data: { status: 'CLOSED', closedAt: new Date() },
+          });
+        }
+
+        const lastRoundNumber = await tx.lotteryRound.aggregate({
+          _max: { number: true },
+        });
+
+        const nextRoundNumber = (lastRoundNumber._max.number ?? 0) + 1;
+
+        const newRound = await tx.lotteryRound.create({
+          data: {
+            number: nextRoundNumber,
+            capacity,
+            entryPrice: BigInt(entryPrice),
+            winnersCount,
+            status: 'OPEN',
+            startedAt: new Date(),
+            closedAt: null,
+            drawDate: null,
+          },
+        });
+
+        await tx.transactionLog.create({
+          data: {
+            action: 'LOTTERY_NEW_ROUND_ON_SETTINGS_CREATE',
+            details: `newRound=${newRound.number}. capacity=${capacity}, entryPrice=${entryPrice}, winnersCount=${winnersCount}${status ? `, status=${status}` : ''}`,
+          },
+        });
+
+        return createdSettings;
       });
 
       return NextResponse.json({
@@ -70,21 +113,57 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    const updated = await db.lotterySettings.update({
-      where: { id: existing.id },
-      data: {
-        capacity,
-        entryPrice: BigInt(entryPrice),
-        winnersCount,
-        ...(status ? { status } : {}),
-      },
-    });
+    const updated = await db.$transaction(async (tx) => {
+      const updatedSettings = await tx.lotterySettings.update({
+        where: { id: existing.id },
+        data: {
+          capacity,
+          entryPrice: BigInt(entryPrice),
+          winnersCount,
+          status: status || 'OPEN',
+          drawDate: null,
+        },
+      });
 
-    await db.transactionLog.create({
-      data: {
-        action: 'LOTTERY_SETTINGS_UPDATED',
-        details: `capacity=${capacity}, entryPrice=${entryPrice}, winnersCount=${winnersCount}${status ? `, status=${status}` : ''}`,
-      },
+      const activeRound = await tx.lotteryRound.findFirst({
+        where: { status: 'OPEN' },
+        orderBy: { startedAt: 'desc' },
+      });
+
+      if (activeRound) {
+        await tx.lotteryRound.update({
+          where: { id: activeRound.id },
+          data: { status: 'CLOSED', closedAt: new Date() },
+        });
+      }
+
+      const lastRoundNumber = await tx.lotteryRound.aggregate({
+        _max: { number: true },
+      });
+
+      const nextRoundNumber = (lastRoundNumber._max.number ?? 0) + 1;
+
+      const newRound = await tx.lotteryRound.create({
+        data: {
+          number: nextRoundNumber,
+          capacity,
+          entryPrice: BigInt(entryPrice),
+          winnersCount,
+          status: 'OPEN',
+          startedAt: new Date(),
+          closedAt: null,
+          drawDate: null,
+        },
+      });
+
+      await tx.transactionLog.create({
+        data: {
+          action: 'LOTTERY_NEW_ROUND_ON_SETTINGS_UPDATE',
+          details: `newRound=${newRound.number}. capacity=${capacity}, entryPrice=${entryPrice}, winnersCount=${winnersCount}${status ? `, status=${status}` : ''}`,
+        },
+      });
+
+      return updatedSettings;
     });
 
     return NextResponse.json({

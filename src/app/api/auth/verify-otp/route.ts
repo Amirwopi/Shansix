@@ -2,15 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { isValidIranianMobile } from '@/lib/utils';
 import { SignJWT } from 'jose';
-import crypto from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+const JWT_SECRET = process.env.JWT_SECRET || '';
 const JWT_EXPIRY = '7d'; // Token expires in 7 days
 const ADMIN_MOBILE = process.env.ADMIN_MOBILE || '09337309575';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'admin-secret-token';
 
 export async function POST(request: NextRequest) {
   try {
+    if (!JWT_SECRET) {
+      return NextResponse.json(
+        { success: false, message: 'پیکربندی سرور ناقص است (JWT_SECRET تنظیم نشده است)' },
+        { status: 500 }
+      );
+    }
+
     const body = await request.json();
     const { mobile, code } = body;
 

@@ -1,23 +1,30 @@
 import { db } from '@/lib/db';
 import { sendWinnerSMS } from '@/lib/faraz';
 
-export async function drawLotteryWinners(options?: { sendSms?: boolean; reason?: string }) {
+export async function drawLotteryWinners(options?: { sendSms?: boolean; reason?: string; roundId?: string }) {
   const sendSms = options?.sendSms ?? true;
   const reason = options?.reason || 'MANUAL';
+  const inputRoundId = options?.roundId;
 
-  const settings = await db.lotterySettings.findFirst();
+  const round = inputRoundId
+    ? await db.lotteryRound.findUnique({ where: { id: inputRoundId } })
+    : await db.lotteryRound.findFirst({
+        where: { status: { in: ['OPEN', 'CLOSED'] } },
+        orderBy: { startedAt: 'desc' },
+      });
 
-  if (!settings) {
-    throw new Error('Lottery settings not found');
+  if (!round) {
+    throw new Error('Lottery round not found');
   }
 
-  if (settings.status !== 'OPEN' && settings.status !== 'CLOSED') {
+  if (round.status !== 'OPEN' && round.status !== 'CLOSED') {
     throw new Error('Lottery has already been drawn');
   }
 
   const lotteryCodes = await db.lotteryCode.findMany({
     where: {
       winner: null,
+      roundId: round.id,
     },
     include: {
       user: true,
@@ -28,7 +35,7 @@ export async function drawLotteryWinners(options?: { sendSms?: boolean; reason?:
     throw new Error('No lottery codes available');
   }
 
-  if (lotteryCodes.length < settings.winnersCount) {
+  if (lotteryCodes.length < round.winnersCount) {
     throw new Error('Not enough lottery codes to select winners');
   }
 
@@ -38,15 +45,27 @@ export async function drawLotteryWinners(options?: { sendSms?: boolean; reason?:
     [shuffledCodes[i], shuffledCodes[j]] = [shuffledCodes[j], shuffledCodes[i]];
   }
 
-  const selectedWinners = shuffledCodes.slice(0, settings.winnersCount);
+  const selectedWinners = shuffledCodes.slice(0, round.winnersCount);
+
+  const totalRevenue = await db.payment.aggregate({
+    where: { roundId: round.id, status: 'SUCCESS' },
+    _sum: { amount: true },
+  });
+
+  const totalRevenueAmount = totalRevenue._sum.amount ?? BigInt(0);
+  const prizeAmountPerWinner = BigInt(round.winnersCount) > BigInt(0)
+    ? totalRevenueAmount / BigInt(round.winnersCount)
+    : BigInt(0);
 
   const winners = [];
   for (const winnerCode of selectedWinners) {
     const winner = await db.winner.create({
       data: {
         userId: winnerCode.userId,
+        roundId: round.id,
         lotteryCode: winnerCode.code,
         drawDate: new Date(),
+        prizeAmount: prizeAmountPerWinner,
       },
     });
 
@@ -64,13 +83,13 @@ export async function drawLotteryWinners(options?: { sendSms?: boolean; reason?:
       data: {
         userId: winnerCode.userId,
         action: 'LOTTERY_WINNER_SELECTED',
-        details: `Reason: ${reason}. User ${winnerCode.user.mobile} won with code ${winnerCode.code}`,
+        details: `Reason: ${reason}. Round=${round.number}. User ${winnerCode.user.mobile} won with code ${winnerCode.code}. prizeAmount=${prizeAmountPerWinner.toString()}`,
       },
     });
   }
 
-  await db.lotterySettings.update({
-    where: { id: settings.id },
+  await db.lotteryRound.update({
+    where: { id: round.id },
     data: {
       status: 'DRAWN',
       drawDate: new Date(),
@@ -80,7 +99,7 @@ export async function drawLotteryWinners(options?: { sendSms?: boolean; reason?:
   await db.transactionLog.create({
     data: {
       action: 'LOTTERY_DRAW_COMPLETED',
-      details: `Reason: ${reason}. Lottery draw completed with ${winners.length} winners selected from ${lotteryCodes.length} participants`,
+      details: `Reason: ${reason}. Round=${round.number}. Lottery draw completed with ${winners.length} winners selected from ${lotteryCodes.length} participants. totalRevenue=${totalRevenueAmount.toString()}`,
     },
   });
 

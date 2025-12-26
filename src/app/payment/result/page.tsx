@@ -1,11 +1,14 @@
-export default function ResultPage({
+export default async function ResultPage({
   searchParams,
 }: {
-  searchParams: { success?: string; ref_id?: string; message?: string };
+  searchParams: Promise<{ success?: string; ref_id?: string; message?: string }>;
 }) {
-  const success = searchParams.success === 'true';
-  const refId = searchParams.ref_id;
-  const message = searchParams.message || (success ? 'پرداخت با موفقیت انجام شد!' : 'پرداخت ناموفق بود');
+  const resolvedSearchParams = await searchParams;
+  const success = resolvedSearchParams.success === 'true';
+  const refId = resolvedSearchParams.ref_id;
+  const message =
+    resolvedSearchParams.message ||
+    (success ? 'پرداخت با موفقیت انجام شد!' : 'پرداخت ناموفق بود');
 
   return (
     <div style={{ direction: 'rtl', textAlign: 'center', padding: '50px', fontFamily: 'tahoma' }}>

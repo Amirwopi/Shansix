@@ -3,10 +3,13 @@
   "version": "1.0.0",
   "description": "Professional online lottery system with OTP authentication and ZarinPal payment integration",
   "private": true,
+  "engines": {
+    "node": ">=20 <24"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postinstall": "prisma generate",
+    "postinstall": "node -e \"const {spawnSync}=require('child_process'); const cmd=process.env.BUN?'bunx':'npx'; const r=spawnSync(cmd,['prisma','generate'],{stdio:'inherit',shell:true}); process.exit(r.status??1);\"",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
@@ -38,7 +41,7 @@
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
     "zarinpal-checkout": "*",
-    "@prisma/client": "^5.18.0"
+    "@prisma/client": "5.18.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
@@ -48,8 +51,11 @@
     "eslint": "^8.57.0",
     "eslint-config-next": "15.0.0",
     "postcss": "^8.4.39",
-    "prisma": "^5.18.0",
+    "prisma": "5.18.0",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.5.2"
+  },
+  "overrides": {
+    "@prisma/engines": "5.18.0"
   }
 }

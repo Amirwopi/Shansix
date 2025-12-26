@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { jwtVerify } from 'jose';
+import { getOrCreateActiveRound } from '@/lib/round';
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 
 export async function GET(request: NextRequest) {
   try {
+    if (!JWT_SECRET) {
+      return NextResponse.json(
+        { success: false, message: 'پیکربندی سرور ناقص است (JWT_SECRET تنظیم نشده است)' },
+        { status: 500 }
+      );
+    }
+
     const token = request.cookies.get('auth_token')?.value;
 
     if (!token) {
@@ -41,19 +49,41 @@ export async function GET(request: NextRequest) {
       }
 
       const settings = await db.lotterySettings.findFirst();
-      const totalCodes = await db.lotteryCode.count();
+      const { round } = await getOrCreateActiveRound();
+      const totalCodes = await db.lotteryCode.count({
+        where: { roundId: round.id },
+      });
+
+      const winner =
+        round.status === 'DRAWN'
+          ? await db.winner.findFirst({
+              where: { roundId: round.id, userId: user.id },
+              orderBy: { drawDate: 'desc' },
+            })
+          : null;
 
       return NextResponse.json({
         mobile: user.mobile,
-        lotteryStatus: settings?.status || 'OPEN',
-        capacity: settings?.capacity || 1000,
+        lotteryStatus: round.status || settings?.status || 'OPEN',
+        capacity: round.capacity,
         participants: totalCodes,
-        entryPrice: Number(settings?.entryPrice) || 50000,
-        lotteryCodes: user.lotteryCodes.map(code => ({
+        entryPrice: Number(round.entryPrice) || Number(settings?.entryPrice) || 50000,
+        winner: winner
+          ? {
+              lotteryCode: winner.lotteryCode,
+              drawDate: winner.drawDate,
+              prizeAmount: Number(winner.prizeAmount),
+            }
+          : null,
+        lotteryCodes: user.lotteryCodes
+          .filter((c) => c.roundId === round.id)
+          .map(code => ({
           code: code.code,
           createdAt: code.createdAt,
         })),
-        payments: user.payments.map(payment => ({
+        payments: user.payments
+          .filter((p) => p.roundId === round.id)
+          .map(payment => ({
           amount: Number(payment.amount),
           status: payment.status,
           createdAt: payment.createdAt,

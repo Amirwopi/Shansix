@@ -18,17 +18,21 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('Status');
 
     if (!authority || !status) {
-      return NextResponse.redirect(new URL('/?error=invalid_callback', request.url));
+      return NextResponse.redirect(
+        new URL('/payment/result?success=false&message=invalid_callback', request.url)
+      );
     }
 
     // Find the payment by authority
-    const payment = await db.payment.findUnique({
+    const payment = await db.payment.findFirst({
       where: { authority },
       include: { user: true },
     });
 
     if (!payment) {
-      return NextResponse.redirect(new URL('/?error=payment_not_found', request.url));
+      return NextResponse.redirect(
+        new URL('/payment/result?success=false&message=payment_not_found', request.url)
+      );
     }
 
     if (status === 'NOK') {
@@ -48,7 +52,7 @@ export async function GET(request: NextRequest) {
       });
 
       return NextResponse.redirect(
-        new URL('/dashboard?error=payment_cancelled', request.url)
+        new URL('/payment/result?success=false&message=payment_cancelled', request.url)
       );
     }
 
@@ -100,6 +104,7 @@ export async function GET(request: NextRequest) {
               code: lotteryCodeValue,
               userId: payment.userId,
               paymentId: payment.id,
+              roundId: payment.roundId,
             },
           });
         }
@@ -124,19 +129,23 @@ export async function GET(request: NextRequest) {
         });
 
         // Check if capacity is reached and trigger lottery
-        const settings = await db.lotterySettings.findFirst();
-        if (settings) {
-          const totalCodes = await db.lotteryCode.count();
-          
-          if (totalCodes >= settings.capacity && settings.status === 'OPEN') {
-            // Update lottery status to CLOSED
-            await db.lotterySettings.update({
-              where: { id: settings.id },
-              data: { status: 'CLOSED' },
+        const round = await db.lotteryRound.findUnique({
+          where: { id: payment.roundId },
+        });
+
+        if (round) {
+          const totalCodes = await db.lotteryCode.count({
+            where: { roundId: round.id },
+          });
+
+          if (totalCodes >= round.capacity && round.status === 'OPEN') {
+            await db.lotteryRound.update({
+              where: { id: round.id },
+              data: { status: 'CLOSED', closedAt: new Date() },
             });
 
             try {
-              await drawLotteryWinners({ sendSms: true, reason: 'AUTO_CAPACITY' });
+              await drawLotteryWinners({ sendSms: true, reason: 'AUTO_CAPACITY', roundId: round.id });
             } catch (drawError) {
               console.error('Auto lottery draw failed:', drawError);
             }
@@ -145,7 +154,10 @@ export async function GET(request: NextRequest) {
 
         // Redirect to dashboard with success message
         return NextResponse.redirect(
-          new URL(`/dashboard?success=payment_completed&code=${lotteryCodeValue}`, request.url)
+          new URL(
+            `/payment/result?success=true&ref_id=${encodeURIComponent(refId)}&message=payment_completed`,
+            request.url
+          )
         );
       } else {
         // Payment verification failed
@@ -163,7 +175,7 @@ export async function GET(request: NextRequest) {
         });
 
         return NextResponse.redirect(
-          new URL('/dashboard?error=payment_verification_failed', request.url)
+          new URL('/payment/result?success=false&message=payment_verification_failed', request.url)
         );
       }
     } catch (verifyError: any) {
@@ -183,11 +195,13 @@ export async function GET(request: NextRequest) {
       });
 
       return NextResponse.redirect(
-        new URL('/dashboard?error=payment_verification_error', request.url)
+        new URL('/payment/result?success=false&message=payment_verification_error', request.url)
       );
     }
   } catch (error) {
     console.error('Error in payment verification callback:', error);
-    return NextResponse.redirect(new URL('/?error=server_error', request.url));
+    return NextResponse.redirect(
+      new URL('/payment/result?success=false&message=server_error', request.url)
+    );
   }
 }

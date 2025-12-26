@@ -24,14 +24,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (settings.status !== 'OPEN' && settings.status !== 'CLOSED') {
+    const body = await request.json().catch(() => ({} as any));
+    const inputRoundId = typeof body?.roundId === 'string' ? body.roundId : undefined;
+
+    const round = inputRoundId
+      ? await db.lotteryRound.findUnique({ where: { id: inputRoundId } })
+      : await db.lotteryRound.findFirst({
+          where: { status: { in: ['OPEN', 'CLOSED'] } },
+          orderBy: { startedAt: 'desc' },
+        });
+
+    if (!round) {
+      return NextResponse.json(
+        { success: false, message: 'قرعه‌کشی فعالی یافت نشد' },
+        { status: 404 }
+      );
+    }
+
+    if (round.status !== 'OPEN' && round.status !== 'CLOSED') {
       return NextResponse.json(
         { success: false, message: 'قرعه‌کشی قبلاً انجام شده است' },
         { status: 400 }
       );
     }
 
-    const winners = await drawLotteryWinners({ sendSms: true, reason: 'MANUAL_ADMIN' });
+    const winners = await drawLotteryWinners({
+      sendSms: true,
+      reason: 'MANUAL_ADMIN',
+      roundId: round.id,
+    });
 
     return NextResponse.json({
       success: true,

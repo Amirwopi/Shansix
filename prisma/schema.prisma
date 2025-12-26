@@ -48,6 +48,7 @@ model OTP {
 model Payment {
   id              String   @id @default(uuid())
   userId          String
+  roundId         String?
   amount          BigInt
   status          String   // PENDING, SUCCESS, FAILED
   authority       String?  // ZarinPal authority code
@@ -60,6 +61,7 @@ model Payment {
   // Relations
   user          User         @relation(fields: [userId], references: [id])
   lotteryCodes  LotteryCode[]
+  round         LotteryRound? @relation(fields: [roundId], references: [id])
 
   @@map("payments")
 }
@@ -70,11 +72,13 @@ model LotteryCode {
   code        String   @unique
   userId      String
   paymentId   String
+  roundId     String?
   createdAt   DateTime @default(now())
 
   // Relations
   user    User    @relation(fields: [userId], references: [id])
   payment Payment @relation(fields: [paymentId], references: [id])
+  round   LotteryRound? @relation(fields: [roundId], references: [id])
   winner  Winner?
 
   @@map("lottery_codes")
@@ -98,15 +102,39 @@ model LotterySettings {
 model Winner {
   id          String   @id @default(uuid())
   userId      String
+  roundId     String?
   lotteryCode String   @unique
   drawDate    DateTime @default(now())
+  prizeAmount BigInt   @default(0)
   createdAt   DateTime @default(now())
 
   // Relations
   user    User       @relation(fields: [userId], references: [id])
   code    LotteryCode @relation(fields: [lotteryCode], references: [code])
+  round   LotteryRound? @relation(fields: [roundId], references: [id])
 
   @@map("winners")
+}
+
+model LotteryRound {
+  id            String   @id @default(uuid())
+  number        Int      @unique
+  capacity      Int
+  entryPrice    BigInt
+  winnersCount  Int      @default(1)
+  status        String   // OPEN, CLOSED, DRAWN
+  startedAt     DateTime @default(now())
+  closedAt      DateTime?
+  drawDate      DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  payments      Payment[]
+  lotteryCodes  LotteryCode[]
+  winners       Winner[]
+
+  @@map("lottery_rounds")
 }
 
 // TransactionLog model for audit logging

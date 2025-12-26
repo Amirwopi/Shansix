@@ -22,6 +22,11 @@ interface LotteryData {
   capacity: number;
   participants: number;
   entryPrice: number;
+  winner?: {
+    lotteryCode: string;
+    drawDate: string;
+    prizeAmount: number;
+  } | null;
   lotteryCodes: Array<{
     code: string;
     createdAt: string;
@@ -87,9 +92,16 @@ export default function DashboardPage() {
     }
   };
 
-  const handleLogout = () => {
-    document.cookie = 'auth_token=; path=/; max-age=0';
-    window.location.href = '/';
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+    } catch (err) {
+      setError('خطا در خروج از حساب');
+    } finally {
+      window.location.href = '/';
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -173,6 +185,46 @@ export default function DashboardPage() {
           <Alert variant="destructive" className="mb-6">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
+        )}
+
+        {data.lotteryStatus === 'DRAWN' && (
+          <Card className="mb-6 overflow-hidden border-0 bg-gradient-to-r from-primary/10 via-yellow-100/40 to-primary/10">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <div className="text-2xl font-bold tracking-tight animate-pulse">برنده مشخص شد</div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    قرعه‌کشی به پایان رسید و نتیجه اعلام شد.
+                  </div>
+                </div>
+
+                {data.winner ? (
+                  <Badge className="bg-green-100 text-green-800">
+                    تبریک! شما برنده شدید
+                  </Badge>
+                ) : (
+                  <Badge className="bg-purple-100 text-purple-800">نتیجه اعلام شد</Badge>
+                )}
+              </div>
+
+              {data.winner && (
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="border rounded-lg p-3 bg-white/50">
+                    <div className="text-xs text-muted-foreground">کد برنده</div>
+                    <div className="font-mono font-bold">{data.winner.lotteryCode}</div>
+                  </div>
+                  <div className="border rounded-lg p-3 bg-white/50">
+                    <div className="text-xs text-muted-foreground">مبلغ جایزه</div>
+                    <div className="font-bold">{data.winner.prizeAmount.toLocaleString('fa-IR')} تومان</div>
+                  </div>
+                  <div className="border rounded-lg p-3 bg-white/50">
+                    <div className="text-xs text-muted-foreground">زمان قرعه‌کشی</div>
+                    <div className="text-sm">{new Date(data.winner.drawDate).toLocaleString('fa-IR')}</div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         <Card className="mb-6 animate-fade-in">
