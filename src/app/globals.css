@@ -132,3 +132,66 @@
 		background-position: 0% 50%;
 	}
 }
+
+@keyframes auroraFloat1 {
+  0% {
+    transform: translate3d(-10%, -10%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(10%, 5%, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(-10%, -10%, 0) scale(1);
+  }
+}
+
+@keyframes auroraFloat2 {
+  0% {
+    transform: translate3d(10%, 10%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-8%, -6%, 0) scale(1.1);
+  }
+  100% {
+    transform: translate3d(10%, 10%, 0) scale(1);
+  }
+}
+
+@layer utilities {
+  .bg-aurora {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .bg-aurora::before,
+  .bg-aurora::after {
+    content: "";
+    position: fixed;
+    inset: -20vmax;
+    z-index: -1;
+    pointer-events: none;
+    filter: blur(60px);
+    opacity: 0.38;
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  .bg-aurora::before {
+    background: radial-gradient(closest-side, rgba(99, 102, 241, 0.55), transparent 65%),
+      radial-gradient(closest-side, rgba(14, 165, 233, 0.45), transparent 60%);
+    animation: auroraFloat1 18s ease-in-out infinite;
+  }
+
+  .bg-aurora::after {
+    background: radial-gradient(closest-side, rgba(245, 158, 11, 0.40), transparent 62%),
+      radial-gradient(closest-side, rgba(168, 85, 247, 0.35), transparent 60%);
+    animation: auroraFloat2 22s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bg-aurora::before,
+    .bg-aurora::after {
+      animation: none;
+    }
+  }
+}

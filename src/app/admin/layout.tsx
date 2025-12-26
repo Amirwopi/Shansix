@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
-import { Bell, Home, Package2, Users, LineChart, LogOut } from 'lucide-react';
+import { Bell, Home, Package2, Users, LineChart, LogOut, MessageSquareText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -42,6 +42,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               >
                 <LineChart className="h-4 w-4" />
                 گزارش مالی
+              </Link>
+              <Link
+                href="/admin/feedback"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+              >
+                <MessageSquareText className="h-4 w-4" />
+                نظرات و پیشنهادات
               </Link>
             </nav>
           </div>
