@@ -37,6 +37,18 @@ export default function DashboardPage() {
     const [error, setError] = useState('');
     const [paymentLoading, setPaymentLoading] = useState(false);
 
+    const formatDateTime = (value: string) => {
+        try {
+            return new Intl.DateTimeFormat('fa-IR', {
+                dateStyle: 'short',
+                timeStyle: 'short',
+                timeZone: 'Asia/Tehran',
+            }).format(new Date(value));
+        } catch {
+            return value;
+        }
+    };
+
     const tourSteps = [
         {
             id: 'dashboard-status',
@@ -83,7 +95,7 @@ export default function DashboardPage() {
         setLoading(true);
         setError('');
         try {
-            const response = await fetch('/api/dashboard');
+            const response = await fetch('/api/dashboard', { credentials: 'include' });
             if (response.ok) {
                 const result = await response.json();
                 setData(result);
@@ -106,6 +118,7 @@ export default function DashboardPage() {
         try {
             const response = await fetch('/api/payment/create', {
                 method: 'POST',
+                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ amount: data?.entryPrice }),
             });
@@ -214,7 +227,7 @@ export default function DashboardPage() {
                         </div>
                         <div>
                             <p className="text-sm font-semibold">زمان قرعه‌کشی</p>
-                            <p className="text-lg font-bold">{new Date(data.winner.drawDate).toLocaleString('fa-IR')}</p>
+                            <p className="text-lg font-bold">{formatDateTime(data.winner.drawDate)}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -329,7 +342,7 @@ export default function DashboardPage() {
                                             <div>
                                                 <p className="font-semibold">{payment.amount.toLocaleString('fa-IR')} تومان</p>
                                                 <p className="text-xs text-muted-foreground">
-                                                    {new Date(payment.createdAt).toLocaleString('fa-IR')}
+                                                    {formatDateTime(payment.createdAt)}
                                                 </p>
                                             </div>
                                         </div>

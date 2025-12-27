@@ -129,6 +129,29 @@ export default function AdminPage() {
     isActive: 'true' as 'true' | 'false',
   });
 
+  const formatDateTime = (value: string) => {
+    try {
+      return new Intl.DateTimeFormat('fa-IR', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+        timeZone: 'Asia/Tehran',
+      }).format(new Date(value));
+    } catch {
+      return value;
+    }
+  };
+
+  const formatDate = (value: string) => {
+    try {
+      return new Intl.DateTimeFormat('fa-IR', {
+        dateStyle: 'short',
+        timeZone: 'Asia/Tehran',
+      }).format(new Date(value));
+    } catch {
+      return value;
+    }
+  };
+
   useEffect(() => {
     fetchAdminData(selectedRoundId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -146,7 +169,7 @@ export default function AdminPage() {
     setError('');
     try {
       const query = roundId ? `?roundId=${encodeURIComponent(roundId)}` : '';
-      const response = await fetch(`/api/admin${query}`);
+      const response = await fetch(`/api/admin${query}`, { credentials: 'include' });
       if (response.ok) {
         const result = await response.json();
         setData(result);
@@ -173,6 +196,7 @@ export default function AdminPage() {
     try {
       const response = await fetch('/api/admin/run-lottery', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roundId: selectedRoundId }),
       });
@@ -195,7 +219,7 @@ export default function AdminPage() {
     setActionLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/admin/reset', { method: 'POST' });
+      const response = await fetch('/api/admin/reset', { method: 'POST', credentials: 'include' });
       const result = await response.json();
       if (result.success && result.newRound) {
         alert('دوره جدید با موفقیت ایجاد شد.');
@@ -251,6 +275,7 @@ export default function AdminPage() {
 
       const response = await fetch('/api/admin/settings', {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ capacity, entryPrice, winnersCount, status }),
       });
@@ -280,7 +305,7 @@ export default function AdminPage() {
     setBannerLoading(true);
     setBannerError('');
     try {
-      const res = await fetch('/api/admin/dashboard-banners', { cache: 'no-store' });
+      const res = await fetch('/api/admin/dashboard-banners', { cache: 'no-store', credentials: 'include' });
       const json = await res.json().catch(() => ({} as any));
 
       if (res.status === 401) {
@@ -321,6 +346,7 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/dashboard-banners', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageUrl,
@@ -362,6 +388,7 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/dashboard-banners/${encodeURIComponent(id)}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageUrl,
@@ -397,6 +424,7 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/dashboard-banners/${encodeURIComponent(id)}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const json = await res.json().catch(() => ({} as any));
@@ -720,7 +748,7 @@ export default function AdminPage() {
                             )}
                           </TableCell>
                           <TableCell>{user.successfulPurchases.toLocaleString('fa-IR')}</TableCell>
-                          <TableCell>{new Date(user.createdAt).toLocaleDateString('fa-IR')}</TableCell>
+                          <TableCell>{formatDate(user.createdAt)}</TableCell>
                         </TableRow>
                     ))}
                   </TableBody>
@@ -752,7 +780,7 @@ export default function AdminPage() {
                           <TableCell>
                             <PaymentStatusBadge status={p.status} />
                           </TableCell>
-                          <TableCell>{new Date(p.createdAt).toLocaleString('fa-IR')}</TableCell>
+                          <TableCell>{formatDateTime(p.createdAt)}</TableCell>
                         </TableRow>
                     ))}
                   </TableBody>
@@ -780,7 +808,7 @@ export default function AdminPage() {
                         <TableRow key={c.id}>
                           <TableCell className="font-mono tracking-widest">{c.code}</TableCell>
                           <TableCell>{c.user?.mobile ?? c.userMobile ?? '-'}</TableCell>
-                          <TableCell>{new Date(c.createdAt).toLocaleDateString('fa-IR')}</TableCell>
+                          <TableCell>{formatDate(c.createdAt)}</TableCell>
                         </TableRow>
                     ))}
                   </TableBody>
@@ -810,7 +838,7 @@ export default function AdminPage() {
                           <TableCell>{w.user?.mobile ?? w.userMobile ?? '-'}</TableCell>
                           <TableCell className="font-mono tracking-widest">{w.lotteryCode}</TableCell>
                           <TableCell>{w.prizeAmount.toLocaleString('fa-IR')} تومان</TableCell>
-                          <TableCell>{new Date(w.drawDate).toLocaleDateString('fa-IR')}</TableCell>
+                          <TableCell>{formatDate(w.drawDate)}</TableCell>
                         </TableRow>
                     ))}
                   </TableBody>

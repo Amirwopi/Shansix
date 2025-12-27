@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Volume2, VolumeX, Pause, Play } from 'lucide-react';
 
@@ -18,24 +18,28 @@ export function MusicPlayer({ src = '/music/background.mp3' }: { src?: string })
   const oscRef = useRef<OscillatorNode | null>(null);
   const [fallbackMode, setFallbackMode] = useState<'media' | 'tone'>('media');
 
-  const initial = useMemo(() => {
-    if (typeof window === 'undefined') return { enabled: false, volume: 0.35 };
+  const [mounted, setMounted] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [volume, setVolume] = useState(0.35);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) return { enabled: true, volume: 0.35 };
+      if (!raw) {
+        setEnabled(true);
+        setVolume(0.35);
+        return;
+      }
       const parsed = JSON.parse(raw) as any;
-      return {
-        enabled: Boolean(parsed?.enabled),
-        volume: clamp01(Number(parsed?.volume ?? 0.35)),
-      };
+      setEnabled(Boolean(parsed?.enabled));
+      setVolume(clamp01(Number(parsed?.volume ?? 0.35)));
     } catch {
-      return { enabled: true, volume: 0.35 };
+      setEnabled(true);
+      setVolume(0.35);
     }
   }, []);
-
-  const [enabled, setEnabled] = useState(initial.enabled);
-  const [volume, setVolume] = useState(initial.volume);
-  const [ready, setReady] = useState(false);
 
   const stopTone = () => {
     try {
@@ -81,13 +85,15 @@ export function MusicPlayer({ src = '/music/background.mp3' }: { src?: string })
   };
 
   useEffect(() => {
+    if (!mounted) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ enabled, volume }));
     } catch {
     }
-  }, [enabled, volume]);
+  }, [enabled, mounted, volume]);
 
   useEffect(() => {
+    if (!mounted) return;
     const a = audioRef.current;
     if (!a) return;
 
@@ -121,7 +127,7 @@ export function MusicPlayer({ src = '/music/background.mp3' }: { src?: string })
     };
 
     startOrStop();
-  }, [enabled, volume, fallbackMode]);
+  }, [enabled, mounted, volume, fallbackMode]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -188,9 +194,9 @@ export function MusicPlayer({ src = '/music/background.mp3' }: { src?: string })
           }
           setEnabled((v) => !v);
         }}
-        aria-label={enabled ? 'توقف موزیک' : 'پخش موزیک'}
+        aria-label={mounted && enabled ? 'توقف موزیک' : 'پخش موزیک'}
       >
-        {enabled ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+        {mounted && enabled ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
       </Button>
 
       <Button

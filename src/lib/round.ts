@@ -9,10 +9,17 @@ async function getNextRoundNumber() {
 }
 
 export async function getOrCreateActiveRound() {
-  const settings = await db.lotterySettings.findFirst();
+  let settings = await db.lotterySettings.findFirst();
 
   if (!settings) {
-    throw new Error('Lottery settings not found');
+    settings = await db.lotterySettings.create({
+      data: {
+        capacity: 1000,
+        entryPrice: 50000,
+        winnersCount: 1,
+        status: 'OPEN',
+      },
+    });
   }
 
   const existingOpenRound = await db.lotteryRound.findFirst({

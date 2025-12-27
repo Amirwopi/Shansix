@@ -8,6 +8,14 @@ const JWT_EXPIRY = '7d'; // Token expires in 7 days
 const ADMIN_MOBILE = process.env.ADMIN_MOBILE || '09337309575';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'admin-secret-token';
 
+function isSecureRequest(request: NextRequest) {
+  const forwardedProto = request.headers.get('x-forwarded-proto');
+  if (forwardedProto) {
+    return forwardedProto === 'https';
+  }
+  return request.nextUrl.protocol === 'https:';
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!JWT_SECRET) {
@@ -104,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     response.cookies.set('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecureRequest(request),
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/',
@@ -113,7 +121,7 @@ export async function POST(request: NextRequest) {
     if (isAdmin) {
       response.cookies.set('admin_token', ADMIN_TOKEN, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isSecureRequest(request),
         sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60, // 7 days
         path: '/',

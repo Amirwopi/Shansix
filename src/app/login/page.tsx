@@ -12,7 +12,7 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!token.trim()) {
       setError('توکن الزامی است');
       return;
@@ -21,11 +21,26 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError('');
 
-    // Set admin token cookie
-    document.cookie = `admin_token=${token}; path=/; max-age=7*24*60*60`;
+    try {
+      const res = await fetch('/api/auth/admin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
 
-    // Redirect to admin panel
-    window.location.href = '/admin';
+      const json = (await res.json().catch(() => ({}))) as any;
+
+      if (!res.ok || !json?.success) {
+        setError(json?.message || 'خطا در ورود');
+        return;
+      }
+
+      window.location.href = '/dashboard';
+    } catch {
+      setError('خطا در ارتباط با سرور');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

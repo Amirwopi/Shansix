@@ -28,13 +28,13 @@ export default function HomeClient() {
 
     const checkAuth = async () => {
       try {
-        const adminRes = await fetch('/api/admin', { method: 'GET' });
+        const adminRes = await fetch('/api/admin', { method: 'GET', credentials: 'include' });
         if (!cancelled && adminRes.ok) {
           router.replace('/admin');
           return;
         }
 
-        const dashboardRes = await fetch('/api/dashboard', { method: 'GET' });
+        const dashboardRes = await fetch('/api/dashboard', { method: 'GET', credentials: 'include' });
         if (!cancelled && dashboardRes.ok) {
           router.replace('/dashboard');
           return;
@@ -68,6 +68,7 @@ export default function HomeClient() {
     try {
       const response = await fetch('/api/auth/send-otp', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -114,6 +115,7 @@ export default function HomeClient() {
     try {
       const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
