@@ -49,7 +49,7 @@ async function main() {
 
   // No prisma/migrations in this repo; use db push to sync schema in production.
   // If you later add migrations, you can switch this to: prisma migrate deploy
-  run('npx', ['prisma', 'db', 'push']);
+  run('npx', ['prisma', 'db', 'push', '--skip-generate']);
 }
 
 if (require.main === module) {

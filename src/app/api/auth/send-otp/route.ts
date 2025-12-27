@@ -21,7 +21,7 @@ if (FARAZ_API_KEY) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { mobile } = body;
+    const { mobile, instagramId } = body;
 
     if (!mobile || !isValidIranianMobile(mobile)) {
       return NextResponse.json(
@@ -66,9 +66,18 @@ export async function POST(request: NextRequest) {
       user = await db.user.create({
         data: {
           mobile,
+          instagramId: typeof instagramId === 'string' && instagramId.trim() ? instagramId.trim() : null,
           isActive: false,
         },
       });
+    } else if (typeof instagramId === 'string' && instagramId.trim()) {
+      const nextInstagramId = instagramId.trim();
+      if (user.instagramId !== nextInstagramId) {
+        user = await db.user.update({
+          where: { id: user.id },
+          data: { instagramId: nextInstagramId },
+        });
+      }
     }
 
     await db.oTP.create({

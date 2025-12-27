@@ -57,7 +57,7 @@ interface AdminData {
     entryPrice: number;
     winnersCount: number;
   } | null;
-  users: Array<{ id: string; mobile: string; isActive: boolean; successfulPurchases: number; createdAt: string }>;
+  users: Array<{ id: string; mobile: string; instagramId?: string | null; isActive: boolean; successfulPurchases: number; createdAt: string }>;
   payments: Array<{
     id: string;
     userId: string;
@@ -423,7 +423,11 @@ export default function AdminPage() {
     const getMobileFromPayment = (p: AdminData['payments'][number]) => (p.user?.mobile ?? p.userMobile ?? '').toString();
     const getMobileFromCode = (c: AdminData['lotteryCodes'][number]) => (c.user?.mobile ?? c.userMobile ?? '').toString();
     return {
-      users: data.users.filter((u) => u.mobile.includes(lowercasedFilter)),
+      users: data.users.filter((u) => {
+        const mobile = (u.mobile ?? '').toString();
+        const instagram = (u.instagramId ?? '').toString().toLowerCase();
+        return mobile.includes(lowercasedFilter) || instagram.includes(lowercasedFilter);
+      }),
       payments: data.payments.filter((p) => getMobileFromPayment(p).includes(lowercasedFilter)),
       lotteryCodes: data.lotteryCodes.filter(
           (c) => getMobileFromCode(c).includes(lowercasedFilter) || c.code.toLowerCase().includes(lowercasedFilter)
@@ -683,7 +687,7 @@ export default function AdminPage() {
                 <div className="relative mt-2">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                      placeholder="جستجو بر اساس شماره موبایل..."
+                      placeholder="جستجو بر اساس شماره موبایل یا آیدی اینستاگرام..."
                       className="pl-8"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -695,6 +699,7 @@ export default function AdminPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>شماره موبایل</TableHead>
+                      <TableHead>آیدی اینستاگرام</TableHead>
                       <TableHead>وضعیت</TableHead>
                       <TableHead>تعداد خرید</TableHead>
                       <TableHead>تاریخ عضویت</TableHead>
@@ -704,6 +709,7 @@ export default function AdminPage() {
                     {filteredData.users.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell className="font-mono">{user.mobile}</TableCell>
+                          <TableCell className="font-mono">{user.instagramId ?? '-'}</TableCell>
                           <TableCell>
                             {user.isActive ? (
                                 <Badge variant="default" className="bg-green-500 hover:bg-green-600">

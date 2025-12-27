@@ -22,14 +22,14 @@ export function MusicPlayer({ src = '/music/background.mp3' }: { src?: string })
     if (typeof window === 'undefined') return { enabled: false, volume: 0.35 };
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) return { enabled: false, volume: 0.35 };
+      if (!raw) return { enabled: true, volume: 0.35 };
       const parsed = JSON.parse(raw) as any;
       return {
         enabled: Boolean(parsed?.enabled),
         volume: clamp01(Number(parsed?.volume ?? 0.35)),
       };
     } catch {
-      return { enabled: false, volume: 0.35 };
+      return { enabled: true, volume: 0.35 };
     }
   }, []);
 
@@ -111,7 +111,10 @@ export function MusicPlayer({ src = '/music/background.mp3' }: { src?: string })
 
         stopTone();
         await a.play();
-      } catch {
+      } catch (err: any) {
+        if (err?.name === 'NotAllowedError') {
+          return;
+        }
         setFallbackMode('tone');
         await startTone();
       }
@@ -119,6 +122,35 @@ export function MusicPlayer({ src = '/music/background.mp3' }: { src?: string })
 
     startOrStop();
   }, [enabled, volume, fallbackMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const a = audioRef.current;
+    if (!a) return;
+    if (!enabled) return;
+    if (fallbackMode !== 'media') return;
+
+    const attempt = async () => {
+      try {
+        await a.play();
+      } catch {
+      }
+    };
+
+    const handler = () => {
+      attempt().catch(() => undefined);
+    };
+
+    window.addEventListener('pointerdown', handler, { passive: true });
+    window.addEventListener('keydown', handler);
+    window.addEventListener('touchstart', handler, { passive: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', handler);
+      window.removeEventListener('keydown', handler);
+      window.removeEventListener('touchstart', handler);
+    };
+  }, [enabled, fallbackMode]);
 
   useEffect(() => {
     return () => {

@@ -100,6 +100,7 @@ export async function GET(request: NextRequest) {
       users: users.map(user => ({
         id: user.id,
         mobile: user.mobile,
+        instagramId: user.instagramId,
         isActive: user.isActive,
         successfulPurchases: successfulPurchasesMap.get(user.id) ?? 0,
         createdAt: user.createdAt,

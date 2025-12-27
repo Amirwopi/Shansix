@@ -12,6 +12,7 @@ import { Smartphone, Shield, User, CheckCircle2 } from 'lucide-react';
 export default function HomeClient() {
   const router = useRouter();
   const [mobile, setMobile] = useState('');
+  const [instagramId, setInstagramId] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -70,7 +71,7 @@ export default function HomeClient() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ mobile }),
+        body: JSON.stringify({ mobile, instagramId }),
       });
 
       const data = await response.json();
@@ -217,6 +218,21 @@ export default function HomeClient() {
                     onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 11))}
                     maxLength={11}
                     className="text-lg text-left dir-ltr"
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="instagramId" className="text-sm font-medium">
+                    آیدی اینستاگرام
+                  </label>
+                  <Input
+                    id="instagramId"
+                    type="text"
+                    placeholder="مثلاً: your_id"
+                    value={instagramId}
+                    onChange={(e) => setInstagramId(e.target.value)}
+                    className="text-left dir-ltr"
                     disabled={loading}
                   />
                 </div>
