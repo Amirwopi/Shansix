@@ -3,13 +3,16 @@
   "version": "1.0.0",
   "description": "Professional online lottery system with OTP authentication and ZarinPal payment integration",
   "private": true,
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
   "engines": {
     "node": ">=20 <24"
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "postinstall": "node -e \"const {spawnSync}=require('child_process'); const cmd=process.env.BUN?'bunx':'npx'; const r=spawnSync(cmd,['prisma','generate'],{stdio:'inherit',shell:true}); process.exit(r.status??1);\"",
+    "build": "npx prisma generate --schema prisma/schema.prisma && next build",
+    "postinstall": "node -e \"const fs=require('fs'); const {spawnSync}=require('child_process'); if(!fs.existsSync('prisma/schema.prisma')){console.log('Skipping prisma generate (schema not present yet)'); process.exit(0);} const cmd=process.env.BUN?'bunx':'npx'; const r=spawnSync(cmd,['prisma','generate','--schema','prisma/schema.prisma'],{stdio:'inherit',shell:true}); process.exit(r.status??1);\"",
     "ensure-db": "node scripts/ensure-db.js",
     "start": "node server.js",
     "lint": "next lint",
