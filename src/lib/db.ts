@@ -5,12 +5,14 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function assertValidDatabaseUrl() {
-  const url = process.env.DATABASE_URL
-  if (!url) {
+  const raw = process.env.DATABASE_URL
+  if (!raw) {
     throw new Error(
       'DATABASE_URL is not set. Expected a MySQL connection string like: mysql://USER:PASSWORD@HOST:3306/DBNAME'
     )
   }
+
+  const url = raw.trim().replace(/^['"]+|['"]+$/g, '')
 
   if (!url.startsWith('mysql://')) {
     throw new Error(
