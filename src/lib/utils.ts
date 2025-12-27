@@ -22,6 +22,39 @@ export function generateLotteryCode(): string {
   return `LOT-${segment1}-${segment2}`;
 }
 
+export function getJalaliYYMMDD(date: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('fa-IR-u-ca-persian-nu-latn', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  const year = parts.find((p) => p.type === 'year')?.value ?? '';
+  const month = parts.find((p) => p.type === 'month')?.value ?? '';
+  const day = parts.find((p) => p.type === 'day')?.value ?? '';
+
+  const yy = year.length >= 2 ? year.slice(-2) : year.padStart(2, '0');
+  const mm = month.padStart(2, '0');
+  const dd = day.padStart(2, '0');
+
+  return `${yy}${mm}${dd}`;
+}
+
+export function generateSequentialLotteryCode(params: {
+  codeNumber: number;
+  capacity: number;
+  roundNumber: number;
+  date?: Date;
+}): string {
+  const { codeNumber, capacity, roundNumber, date } = params;
+  const ymd = getJalaliYYMMDD(date ?? new Date());
+  const roundWidth = Math.max(2, String(roundNumber).length);
+  const rr = String(roundNumber).padStart(roundWidth, '0');
+  const width = Math.max(1, String(capacity).length);
+  const seq = String(codeNumber).padStart(width, '0');
+  return `LOT-${ymd}-${rr}-${seq}`;
+}
+
 /**
  * Generate a 6-digit OTP code
  */

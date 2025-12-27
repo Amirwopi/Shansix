@@ -66,6 +66,7 @@ export async function GET(request: NextRequest) {
       include: {
         user: true,
         code: true,
+        round: true,
       },
       orderBy: { drawDate: 'desc' },
     });
@@ -101,6 +102,7 @@ export async function GET(request: NextRequest) {
         id: user.id,
         mobile: user.mobile,
         instagramId: user.instagramId,
+        name: user.name,
         isActive: user.isActive,
         successfulPurchases: successfulPurchasesMap.get(user.id) ?? 0,
         createdAt: user.createdAt,
@@ -117,6 +119,7 @@ export async function GET(request: NextRequest) {
       lotteryCodes: lotteryCodes.map(code => ({
         id: code.id,
         code: code.code,
+        codeNumber: code.codeNumber,
         userId: code.userId,
         roundId: code.roundId,
         userMobile: code.user.mobile,
@@ -128,8 +131,11 @@ export async function GET(request: NextRequest) {
         roundId: winner.roundId,
         userMobile: winner.user.mobile,
         lotteryCode: winner.lotteryCode,
+        codeNumber: winner.codeNumber ?? null,
+        roundNumber: winner.round?.number ?? null,
         drawDate: winner.drawDate,
         prizeAmount: Number(winner.prizeAmount),
+        prizeType: winner.prizeType ?? null,
         createdAt: winner.createdAt,
       })),
       settings: settings
@@ -139,6 +145,7 @@ export async function GET(request: NextRequest) {
             winnersCount: settings.winnersCount,
             status: settings.status,
             drawDate: settings.drawDate,
+            prizeType: settings.prizeType,
           }
         : {
             capacity: 1000,

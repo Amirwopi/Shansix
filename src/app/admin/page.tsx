@@ -57,7 +57,7 @@ interface AdminData {
     entryPrice: number;
     winnersCount: number;
   } | null;
-  users: Array<{ id: string; mobile: string; instagramId?: string | null; isActive: boolean; successfulPurchases: number; createdAt: string }>;
+  users: Array<{ id: string; mobile: string; instagramId?: string | null; isActive: boolean; successfulPurchases: number; createdAt: string; name: string }>;
   payments: Array<{
     id: string;
     userId: string;
@@ -72,6 +72,7 @@ interface AdminData {
   lotteryCodes: Array<{
     id: string;
     code: string;
+    codeNumber?: number;
     userId: string;
     roundId: string;
     userMobile?: string;
@@ -85,10 +86,13 @@ interface AdminData {
     userMobile?: string;
     user?: { mobile?: string };
     lotteryCode: string;
+    codeNumber?: number | null;
+    roundNumber?: number | null;
     drawDate: string;
-    prizeAmount: number;
+    prizeAmount?: number;
+    prizeType?: string | null;
   }>;
-  settings: { capacity: number; entryPrice: number; winnersCount: number; status: string; drawDate?: string };
+  settings: { capacity: number; entryPrice: number; winnersCount: number; status: string; drawDate?: string; prizeType?: string | null };
 }
 
 type BannerItem = {
@@ -116,7 +120,11 @@ export default function AdminPage() {
     entryPrice: '',
     winnersCount: '',
     status: 'OPEN' as 'OPEN' | 'CLOSED' | 'DRAWN',
+    prizeType: '',
   });
+
+  const [manualWinnerCode, setManualWinnerCode] = useState('');
+  const [giftForm, setGiftForm] = useState({ mobile: '', instagramId: '', count: '1' });
 
   const [bannerItems, setBannerItems] = useState<BannerItem[]>([]);
   const [bannerLoading, setBannerLoading] = useState(false);
@@ -190,7 +198,13 @@ export default function AdminPage() {
   };
 
   const handleRunLottery = async () => {
-    if (!confirm('آیا مطمئن هستید که می‌خواهید قرعه‌کشی را انجام دهید؟ این عملیات غیرقابل بازگشت است.')) return;
+    const code = (manualWinnerCode || '').trim();
+    if (!code) {
+      setError('کد لاتاری برای ثبت برنده الزامی است');
+      return;
+    }
+
+    if (!confirm('آیا مطمئن هستید که می‌خواهید این کد را به عنوان برنده ثبت کنید؟ این عملیات غیرقابل بازگشت است.')) return;
     setActionLoading(true);
     setError('');
     try {
@@ -198,11 +212,12 @@ export default function AdminPage() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roundId: selectedRoundId }),
+        body: JSON.stringify({ roundId: selectedRoundId, lotteryCode: code }),
       });
       const result = await response.json();
       if (result.success) {
-        alert(`قرعه‌کشی با موفقیت انجام شد! ${result.winners.length} برنده انتخاب شدند.`);
+        alert('برنده با موفقیت ثبت شد.');
+        setManualWinnerCode('');
         await fetchAdminData(selectedRoundId);
       } else {
         setError(result.message || 'خطا در انجام قرعه‌کشی');
@@ -247,6 +262,7 @@ export default function AdminPage() {
       entryPrice: String(data.settings.entryPrice ?? ''),
       winnersCount: String(data.settings.winnersCount ?? ''),
       status: (data.settings.status as any) || 'OPEN',
+      prizeType: String((data.settings as any).prizeType ?? ''),
     });
     setSettingsOpen(true);
   };
@@ -259,6 +275,7 @@ export default function AdminPage() {
       const entryPrice = Number(settingsForm.entryPrice);
       const winnersCount = Number(settingsForm.winnersCount);
       const status = settingsForm.status;
+      const prizeType = settingsForm.prizeType.trim();
 
       if (!Number.isInteger(capacity) || capacity <= 0) {
         setSettingsError('ظرفیت باید عدد صحیح بزرگتر از صفر باشد.');
@@ -277,7 +294,7 @@ export default function AdminPage() {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ capacity, entryPrice, winnersCount, status }),
+        body: JSON.stringify({ capacity, entryPrice, winnersCount, status, prizeType }),
       });
 
       const json = await response.json().catch(() => ({} as any));
@@ -453,8 +470,9 @@ export default function AdminPage() {
     return {
       users: data.users.filter((u) => {
         const mobile = (u.mobile ?? '').toString();
+        const name = (u.name ?? '').toString().toLowerCase();
         const instagram = (u.instagramId ?? '').toString().toLowerCase();
-        return mobile.includes(lowercasedFilter) || instagram.includes(lowercasedFilter);
+        return mobile.includes(lowercasedFilter) || instagram.includes(lowercasedFilter) || name.includes(lowercasedFilter);
       }),
       payments: data.payments.filter((p) => getMobileFromPayment(p).includes(lowercasedFilter)),
       lotteryCodes: data.lotteryCodes.filter(
@@ -526,6 +544,67 @@ export default function AdminPage() {
       !!data.selectedRound?.status &&
       (data.selectedRound.status === 'OPEN' || data.selectedRound.status === 'CLOSED') &&
       data.lotteryCodes.length > 0;
+
+  const canGiftLotteryCode =
+      !actionLoading &&
+      !!data.selectedRound?.status &&
+      data.selectedRound.status === 'OPEN';
+
+  const handleGiftLotteryCode = async () => {
+    setActionLoading(true);
+    setError('');
+    try {
+      const mobile = giftForm.mobile.trim();
+      const instagramId = giftForm.instagramId.trim();
+      const count = Number(giftForm.count);
+
+      if (!data.selectedRound || data.selectedRound.status !== 'OPEN') {
+        setError('برای صدور کد هدیه، ابتدا باید یک دوره باز (OPEN) از طریق تنظیمات ایجاد کنید.');
+        return;
+      }
+
+      if (!mobile && !instagramId) {
+        setError('شماره موبایل یا آیدی اینستاگرام الزامی است');
+        return;
+      }
+      if (!Number.isInteger(count) || count <= 0) {
+        setError('تعداد کد باید عدد صحیح بزرگتر از صفر باشد');
+        return;
+      }
+
+      const response = await fetch('/api/admin/gift-lottery-code', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mobile: mobile || undefined,
+          instagramId: instagramId || undefined,
+          roundId: data.selectedRound.status === 'OPEN' ? selectedRoundId : undefined,
+          count,
+        }),
+      });
+
+      const json = await response.json().catch(() => ({} as any));
+
+      if (response.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+
+      if (!response.ok || !json?.success) {
+        setError(json?.message || 'خطا در صدور کد هدیه');
+        return;
+      }
+
+      alert('کد هدیه با موفقیت صادر شد');
+      setGiftForm({ mobile: '', instagramId: '', count: '1' });
+      await fetchAdminData(selectedRoundId);
+    } catch {
+      setError('خطا در ارتباط با سرور');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   return (
       <div className="flex flex-col gap-6">
@@ -608,19 +687,83 @@ export default function AdminPage() {
             <CardTitle>عملیات مدیریتی</CardTitle>
             <CardDescription>ابزارهای اصلی برای مدیریت دوره فعلی قرعه کشی.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button onClick={handleRunLottery} disabled={!canRunLottery}>
-              <Play className="ml-2 h-4 w-4" />
-              انجام قرعه کشی
-            </Button>
-            <Button variant="outline" onClick={handleUpdateSettings}>
-              <Settings className="ml-2 h-4 w-4" />
-              تنظیمات
-            </Button>
-            <Button variant="secondary" onClick={handleExportExcel}>
-              <FileUp className="ml-2 h-4 w-4" />
-              خروجی اکسل
-            </Button>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-2">
+              <div className="text-sm font-medium">ثبت برنده با کد لاتاری</div>
+              <div className="flex flex-col md:flex-row gap-2">
+                <Input
+                  value={manualWinnerCode}
+                  onChange={(e) => setManualWinnerCode(e.target.value)}
+                  placeholder="LOT-XXXX-YYYY"
+                  className="font-mono"
+                  disabled={actionLoading}
+                />
+                <Button onClick={handleRunLottery} disabled={!canRunLottery}>
+                  <Play className="ml-2 h-4 w-4" />
+                  ثبت برنده
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                قرعه‌کشی اتوماتیک حذف شده است؛ برنده فقط با وارد کردن کد لاتاری توسط ادمین ثبت می‌شود.
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={handleUpdateSettings}>
+                <Settings className="ml-2 h-4 w-4" />
+                تنظیمات
+              </Button>
+              <Button variant="secondary" onClick={handleExportExcel}>
+                <FileUp className="ml-2 h-4 w-4" />
+                خروجی اکسل
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>هدیه کد لاتاری</CardTitle>
+            <CardDescription>ادمین می‌تواند به کاربر بر اساس شماره موبایل یا آیدی اینستاگرام کد هدیه بدهد.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid gap-2">
+                <div className="text-sm font-medium">شماره موبایل</div>
+                <Input
+                  value={giftForm.mobile}
+                  onChange={(e) => setGiftForm((s) => ({ ...s, mobile: e.target.value }))}
+                  placeholder="09123456789"
+                  className="text-left dir-ltr"
+                  disabled={actionLoading}
+                />
+              </div>
+              <div className="grid gap-2">
+                <div className="text-sm font-medium">آیدی اینستاگرام</div>
+                <Input
+                  value={giftForm.instagramId}
+                  onChange={(e) => setGiftForm((s) => ({ ...s, instagramId: e.target.value }))}
+                  placeholder="your_id"
+                  className="text-left dir-ltr"
+                  disabled={actionLoading}
+                />
+              </div>
+              <div className="grid gap-2">
+                <div className="text-sm font-medium">تعداد کد</div>
+                <Input
+                  inputMode="numeric"
+                  value={giftForm.count}
+                  onChange={(e) => setGiftForm((s) => ({ ...s, count: e.target.value }))}
+                  placeholder="1"
+                  disabled={actionLoading}
+                />
+              </div>
+            </div>
+            <div>
+              <Button onClick={handleGiftLotteryCode} disabled={!canGiftLotteryCode}>
+                صدور کد هدیه
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -686,6 +829,15 @@ export default function AdminPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="grid gap-2">
+                <div className="text-sm font-medium">نوع جایزه</div>
+                <Input
+                  value={settingsForm.prizeType}
+                  onChange={(e) => setSettingsForm((s) => ({ ...s, prizeType: e.target.value }))}
+                  placeholder="مثلاً: کارت هدیه ۵۰۰ هزار تومانی"
+                />
+              </div>
             </div>
 
             <DialogFooter className="gap-2">
@@ -715,7 +867,7 @@ export default function AdminPage() {
                 <div className="relative mt-2">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                      placeholder="جستجو بر اساس شماره موبایل یا آیدی اینستاگرام..."
+                      placeholder="جستجو بر اساس موبایل، نام کاربر یا آیدی اینستاگرام..."
                       className="pl-8"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -723,36 +875,40 @@ export default function AdminPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>شماره موبایل</TableHead>
-                      <TableHead>آیدی اینستاگرام</TableHead>
-                      <TableHead>وضعیت</TableHead>
-                      <TableHead>تعداد خرید</TableHead>
-                      <TableHead>تاریخ عضویت</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredData.users.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-mono">{user.mobile}</TableCell>
-                          <TableCell className="font-mono">{user.instagramId ?? '-'}</TableCell>
-                          <TableCell>
-                            {user.isActive ? (
-                                <Badge variant="default" className="bg-green-500 hover:bg-green-600">
-                                  فعال
-                                </Badge>
-                            ) : (
-                                <Badge variant="secondary">غیرفعال</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>{user.successfulPurchases.toLocaleString('fa-IR')}</TableCell>
-                          <TableCell>{formatDate(user.createdAt)}</TableCell>
-                        </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div className="w-full overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="whitespace-nowrap">شماره موبایل</TableHead>
+                        <TableHead className="whitespace-nowrap">نام کاربر</TableHead>
+                        <TableHead className="whitespace-nowrap">آیدی اینستاگرام</TableHead>
+                        <TableHead className="whitespace-nowrap">وضعیت</TableHead>
+                        <TableHead className="whitespace-nowrap">تعداد خرید</TableHead>
+                        <TableHead className="whitespace-nowrap">تاریخ عضویت</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredData.users.map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell className="font-mono whitespace-nowrap dir-ltr text-left">{user.mobile}</TableCell>
+                            <TableCell className="whitespace-nowrap">{user.name ?? '-'}</TableCell>
+                            <TableCell className="font-mono whitespace-nowrap dir-ltr text-left">{user.instagramId ?? '-'}</TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {user.isActive ? (
+                                  <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                                    فعال
+                                  </Badge>
+                              ) : (
+                                  <Badge variant="secondary">غیرفعال</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">{user.successfulPurchases.toLocaleString('fa-IR')}</TableCell>
+                            <TableCell className="whitespace-nowrap">{formatDate(user.createdAt)}</TableCell>
+                          </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -763,28 +919,30 @@ export default function AdminPage() {
                 <CardTitle>تاریخچه پرداخت ها</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>موبایل</TableHead>
-                      <TableHead>مبلغ</TableHead>
-                      <TableHead>وضعیت</TableHead>
-                      <TableHead>تاریخ</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredData.payments.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell>{p.user?.mobile ?? p.userMobile ?? '-'}</TableCell>
-                          <TableCell>{p.amount.toLocaleString('fa-IR')} تومان</TableCell>
-                          <TableCell>
-                            <PaymentStatusBadge status={p.status} />
-                          </TableCell>
-                          <TableCell>{formatDateTime(p.createdAt)}</TableCell>
-                        </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div className="w-full overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="whitespace-nowrap">موبایل</TableHead>
+                        <TableHead className="whitespace-nowrap">مبلغ</TableHead>
+                        <TableHead className="whitespace-nowrap">وضعیت</TableHead>
+                        <TableHead className="whitespace-nowrap">تاریخ</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredData.payments.map((p) => (
+                          <TableRow key={p.id}>
+                            <TableCell className="whitespace-nowrap dir-ltr text-left font-mono">{p.user?.mobile ?? p.userMobile ?? '-'}</TableCell>
+                            <TableCell className="whitespace-nowrap">{p.amount.toLocaleString('fa-IR')} تومان</TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              <PaymentStatusBadge status={p.status} />
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">{formatDateTime(p.createdAt)}</TableCell>
+                          </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -795,24 +953,28 @@ export default function AdminPage() {
                 <CardTitle>کدهای صادر شده</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>کد</TableHead>
-                      <TableHead>موبایل</TableHead>
-                      <TableHead>تاریخ صدور</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredData.lotteryCodes.map((c) => (
-                        <TableRow key={c.id}>
-                          <TableCell className="font-mono tracking-widest">{c.code}</TableCell>
-                          <TableCell>{c.user?.mobile ?? c.userMobile ?? '-'}</TableCell>
-                          <TableCell>{formatDate(c.createdAt)}</TableCell>
-                        </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div className="w-full overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="whitespace-nowrap">شماره</TableHead>
+                        <TableHead className="whitespace-nowrap">کد</TableHead>
+                        <TableHead className="whitespace-nowrap">موبایل</TableHead>
+                        <TableHead className="whitespace-nowrap">تاریخ صدور</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredData.lotteryCodes.map((c) => (
+                          <TableRow key={c.id}>
+                            <TableCell className="whitespace-nowrap">{c.codeNumber ?? '-'}</TableCell>
+                            <TableCell className="font-mono tracking-widest whitespace-nowrap dir-ltr text-left">{c.code}</TableCell>
+                            <TableCell className="whitespace-nowrap dir-ltr text-left font-mono">{c.user?.mobile ?? c.userMobile ?? '-'}</TableCell>
+                            <TableCell className="whitespace-nowrap">{formatDate(c.createdAt)}</TableCell>
+                          </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -823,26 +985,32 @@ export default function AdminPage() {
                 <CardTitle>لیست برندگان</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>موبایل</TableHead>
-                      <TableHead>کد برنده</TableHead>
-                      <TableHead>مبلغ جایزه</TableHead>
-                      <TableHead>تاریخ</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.winners.map((w) => (
-                        <TableRow key={w.id}>
-                          <TableCell>{w.user?.mobile ?? w.userMobile ?? '-'}</TableCell>
-                          <TableCell className="font-mono tracking-widest">{w.lotteryCode}</TableCell>
-                          <TableCell>{w.prizeAmount.toLocaleString('fa-IR')} تومان</TableCell>
-                          <TableCell>{formatDate(w.drawDate)}</TableCell>
-                        </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div className="w-full overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="whitespace-nowrap">دوره</TableHead>
+                        <TableHead className="whitespace-nowrap">شماره کد</TableHead>
+                        <TableHead className="whitespace-nowrap">موبایل</TableHead>
+                        <TableHead className="whitespace-nowrap">کد برنده</TableHead>
+                        <TableHead className="whitespace-nowrap">نوع جایزه</TableHead>
+                        <TableHead className="whitespace-nowrap">تاریخ</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.winners.map((w) => (
+                          <TableRow key={w.id}>
+                            <TableCell className="whitespace-nowrap">{w.roundNumber ?? '-'}</TableCell>
+                            <TableCell className="whitespace-nowrap">{w.codeNumber ?? '-'}</TableCell>
+                            <TableCell className="whitespace-nowrap dir-ltr text-left font-mono">{w.user?.mobile ?? w.userMobile ?? '-'}</TableCell>
+                            <TableCell className="font-mono tracking-widest whitespace-nowrap dir-ltr text-left">{w.lotteryCode}</TableCell>
+                            <TableCell className="whitespace-nowrap">{w.prizeType ?? data.settings.prizeType ?? '-'}</TableCell>
+                            <TableCell className="whitespace-nowrap">{formatDate(w.drawDate)}</TableCell>
+                          </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

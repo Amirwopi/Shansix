@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { jwtVerify } from 'jose';
-import { getOrCreateActiveRound } from '@/lib/round';
+import { getLatestRound, getOrCreateActiveRound } from '@/lib/round';
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 
@@ -55,7 +55,22 @@ export async function GET(request: NextRequest) {
     }
 
     const settings = await db.lotterySettings.findFirst();
-    const { round } = await getOrCreateActiveRound();
+    const { round: openRound } = await getOrCreateActiveRound();
+    const round = openRound ?? (await getLatestRound());
+
+    if (!round) {
+      return NextResponse.json({
+        mobile: user.mobile,
+        lotteryStatus: settings?.status || 'CLOSED',
+        capacity: settings?.capacity ?? 0,
+        participants: 0,
+        entryPrice: Number(settings?.entryPrice) || 50000,
+        winner: null,
+        userWins: [],
+        lotteryCodes: [],
+        payments: [],
+      });
+    }
     const totalCodes = await db.lotteryCode.count({
       where: { roundId: round.id },
     });
@@ -68,6 +83,13 @@ export async function GET(request: NextRequest) {
           })
         : null;
 
+    const userWins = await db.winner.findMany({
+      where: { userId: user.id },
+      include: { round: true },
+      orderBy: { drawDate: 'desc' },
+      take: 20,
+    });
+
     return NextResponse.json({
       mobile: user.mobile,
       lotteryStatus: round.status || settings?.status || 'OPEN',
@@ -79,8 +101,15 @@ export async function GET(request: NextRequest) {
             lotteryCode: winner.lotteryCode,
             drawDate: winner.drawDate,
             prizeAmount: Number(winner.prizeAmount),
+            prizeType: winner.prizeType ?? settings?.prizeType ?? null,
           }
         : null,
+      userWins: userWins.map((w) => ({
+        roundNumber: w.round?.number ?? null,
+        lotteryCode: w.lotteryCode,
+        drawDate: w.drawDate,
+        prizeType: w.prizeType ?? settings?.prizeType ?? null,
+      })),
       lotteryCodes: user.lotteryCodes
         .filter((c) => c.roundId === round.id)
         .map((code) => ({

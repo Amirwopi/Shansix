@@ -9,6 +9,10 @@ function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+function startOfDayUtc(d: Date) {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
 function startOfWeek(d: Date) {
   // Week starts on Saturday (common in Iran). 0=Sun..6=Sat
   const day = d.getDay();
@@ -18,27 +22,51 @@ function startOfWeek(d: Date) {
   return base;
 }
 
+function startOfWeekUtc(d: Date) {
+  const day = d.getUTCDay();
+  const diffToSaturday = (day + 1) % 7;
+  const base = startOfDayUtc(d);
+  base.setUTCDate(base.getUTCDate() - diffToSaturday);
+  return base;
+}
+
 function startOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+function startOfMonthUtc(d: Date) {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
 function startOfYear(d: Date) {
   return new Date(d.getFullYear(), 0, 1);
 }
 
+function startOfYearUtc(d: Date) {
+  return new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+}
+
 function formatKey(d: Date, period: Period) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
   if (period === 'yearly') return String(y);
   if (period === 'monthly') return `${y}-${m}`;
   return `${y}-${m}-${day}`;
 }
 
 function bucketStart(d: Date, period: Period) {
-  if (period === 'yearly') return startOfYear(d);
-  if (period === 'monthly') return startOfMonth(d);
-  return startOfWeek(d);
+  if (period === 'yearly') return startOfYearUtc(d);
+  if (period === 'monthly') return startOfMonthUtc(d);
+  return startOfWeekUtc(d);
+}
+
+function addPeriodsUtc(d: Date, period: Period, count: number) {
+  const out = new Date(d);
+  if (period === 'yearly') out.setUTCFullYear(out.getUTCFullYear() + count);
+  else if (period === 'monthly') out.setUTCMonth(out.getUTCMonth() + count);
+  else out.setUTCDate(out.getUTCDate() + 7 * count);
+  return out;
 }
 
 export async function GET(request: NextRequest) {
@@ -68,41 +96,33 @@ export async function GET(request: NextRequest) {
     });
 
     const successfulPayments = await db.payment.findMany({
-      where: { status: 'SUCCESS', paymentDate: { not: null } },
-      orderBy: { paymentDate: 'asc' },
+      where: { status: 'SUCCESS' },
+      orderBy: { createdAt: 'asc' },
       include: { user: true, round: true },
     });
 
+    const bucketsCount = period === 'yearly' ? 10 : 12;
+    const now = new Date();
+    const lastBucketStart = bucketStart(now, period);
+    const firstBucketStart = addPeriodsUtc(lastBucketStart, period, -(bucketsCount - 1));
+
     const seriesMap = new Map<string, { key: string; from: Date; to: Date; revenue: bigint; count: number }>();
+
+    for (let i = 0; i < bucketsCount; i++) {
+      const from = addPeriodsUtc(firstBucketStart, period, i);
+      const to = addPeriodsUtc(from, period, 1);
+      const key = formatKey(from, period);
+      seriesMap.set(key, { key, from, to, revenue: BigInt(0), count: 0 });
+    }
 
     for (const p of successfulPayments) {
       const dt = p.paymentDate ? new Date(p.paymentDate) : new Date(p.createdAt);
       const from = bucketStart(dt, period);
-      const to = new Date(from);
-
-      if (period === 'yearly') {
-        to.setFullYear(to.getFullYear() + 1);
-      } else if (period === 'monthly') {
-        to.setMonth(to.getMonth() + 1);
-      } else {
-        to.setDate(to.getDate() + 7);
-      }
-
       const key = formatKey(from, period);
       const existing = seriesMap.get(key);
-
-      if (existing) {
-        existing.revenue += p.amount;
-        existing.count += 1;
-      } else {
-        seriesMap.set(key, {
-          key,
-          from,
-          to,
-          revenue: p.amount,
-          count: 1,
-        });
-      }
+      if (!existing) continue;
+      existing.revenue += p.amount;
+      existing.count += 1;
     }
 
     const series = Array.from(seriesMap.values())

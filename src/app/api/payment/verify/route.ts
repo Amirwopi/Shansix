@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { generateLotteryCode } from '@/lib/utils';
-import { drawLotteryWinners } from '@/lib/lottery';
+import { generateSequentialLotteryCode } from '@/lib/utils';
 import ZarinPalCheckout from 'zarinpal-checkout';
 
 // Initialize ZarinPal
@@ -77,35 +76,60 @@ export async function GET(request: NextRequest) {
         if (existingCode) {
           lotteryCodeValue = existingCode.code;
         } else {
-          // Generate unique lottery code
-          let attempts = 0;
-          let isUnique = false;
-          
-          while (!isUnique && attempts < 10) {
-            lotteryCodeValue = generateLotteryCode();
-            
-            const existing = await db.lotteryCode.findUnique({
-              where: { code: lotteryCodeValue },
-            });
-            
-            if (!existing) {
-              isUnique = true;
+          await db.$transaction(async (tx) => {
+            if (!payment.roundId) {
+              throw new Error('ROUND_NOT_FOUND');
             }
-            attempts++;
-          }
 
-          if (!isUnique) {
-            throw new Error('Unable to generate unique lottery code');
-          }
+            const round = await tx.lotteryRound.findUnique({ where: { id: payment.roundId } });
+            if (!round) {
+              throw new Error('ROUND_NOT_FOUND');
+            }
 
-          // Create lottery code
-          await db.lotteryCode.create({
-            data: {
-              code: lotteryCodeValue,
-              userId: payment.userId,
-              paymentId: payment.id,
-              roundId: payment.roundId,
-            },
+            const maxAgg = await tx.lotteryCode.aggregate({
+              where: { roundId: payment.roundId },
+              _max: { codeNumber: true },
+            });
+
+            let nextCodeNumber = (maxAgg._max.codeNumber ?? 0) + 1;
+
+            // Retry on unique collisions by incrementing local codeNumber.
+            for (let attempt = 0; attempt < 10; attempt++) {
+              if (nextCodeNumber > round.capacity) {
+                throw new Error('CAPACITY_FULL');
+              }
+
+              const candidate = generateSequentialLotteryCode({
+                codeNumber: nextCodeNumber,
+                capacity: round.capacity,
+                roundNumber: round.number,
+                date: new Date(),
+              });
+
+              try {
+                await tx.lotteryCode.create({
+                  data: {
+                    code: candidate,
+                    codeNumber: nextCodeNumber,
+                    userId: payment.userId,
+                    paymentId: payment.id,
+                    roundId: payment.roundId,
+                  },
+                });
+
+                lotteryCodeValue = candidate;
+                return;
+              } catch (e: any) {
+                // Prisma unique constraint violation
+                if (e?.code === 'P2002') {
+                  nextCodeNumber += 1;
+                  continue;
+                }
+                throw e;
+              }
+            }
+
+            throw new Error('DUPLICATE_CODE');
           });
         }
 
@@ -128,7 +152,7 @@ export async function GET(request: NextRequest) {
           },
         });
 
-        // Check if capacity is reached and trigger lottery
+        // Close the round when capacity is reached (no automatic draw)
         if (payment.roundId) {
           const round = await db.lotteryRound.findUnique({
             where: { id: payment.roundId },
@@ -144,12 +168,6 @@ export async function GET(request: NextRequest) {
                 where: { id: round.id },
                 data: { status: 'CLOSED', closedAt: new Date() },
               });
-
-              try {
-                await drawLotteryWinners({ sendSms: true, reason: 'AUTO_CAPACITY', roundId: round.id });
-              } catch (drawError) {
-                console.error('Auto lottery draw failed:', drawError);
-              }
             }
           }
         }

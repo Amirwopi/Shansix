@@ -21,7 +21,7 @@ if (FARAZ_API_KEY) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { mobile, instagramId } = body;
+    const { mobile, instagramId, name, termsAccepted } = body;
 
     if (!mobile || !isValidIranianMobile(mobile)) {
       return NextResponse.json(
@@ -62,20 +62,73 @@ export async function POST(request: NextRequest) {
       where: { mobile },
     });
 
+    const isRegistered = Boolean(user?.isActive && user?.termsAccepted);
+
+    const shouldRequireRegistrationFields = !isRegistered;
+
+    if (shouldRequireRegistrationFields) {
+      const nextName = typeof name === 'string' ? name.trim() : '';
+      const nextInstagramId = typeof instagramId === 'string' ? instagramId.trim() : '';
+      const nextTermsAccepted = termsAccepted === true;
+
+      if (!nextName) {
+        return NextResponse.json(
+          { success: false, message: 'نام کاربر الزامی است' },
+          { status: 400 }
+        );
+      }
+      if (!nextInstagramId) {
+        return NextResponse.json(
+          { success: false, message: 'آیدی اینستاگرام الزامی است' },
+          { status: 400 }
+        );
+      }
+      if (!nextTermsAccepted) {
+        return NextResponse.json(
+          { success: false, message: 'لطفاً قوانین سایت را تایید کنید' },
+          { status: 400 }
+        );
+      }
+    }
+
     if (!user) {
+      const nextInstagramId = typeof instagramId === 'string' && instagramId.trim() ? instagramId.trim() : null;
+      const nextName = typeof name === 'string' && name.trim() ? name.trim() : null;
       user = await db.user.create({
         data: {
           mobile,
-          instagramId: typeof instagramId === 'string' && instagramId.trim() ? instagramId.trim() : null,
+          instagramId: nextInstagramId,
+          name: nextName,
+          termsAccepted: termsAccepted === true,
           isActive: false,
         },
       });
-    } else if (typeof instagramId === 'string' && instagramId.trim()) {
-      const nextInstagramId = instagramId.trim();
-      if (user.instagramId !== nextInstagramId) {
+    } else {
+      const dataToUpdate: Record<string, any> = {};
+
+      if (!isRegistered) {
+        if (typeof instagramId === 'string' && instagramId.trim()) {
+          dataToUpdate.instagramId = instagramId.trim();
+        }
+        if (typeof name === 'string' && name.trim()) {
+          dataToUpdate.name = name.trim();
+        }
+        if (termsAccepted === true) {
+          dataToUpdate.termsAccepted = true;
+        }
+      } else {
+        if (typeof instagramId === 'string' && instagramId.trim() && user.instagramId !== instagramId.trim()) {
+          dataToUpdate.instagramId = instagramId.trim();
+        }
+        if (typeof name === 'string' && name.trim() && user.name !== name.trim()) {
+          dataToUpdate.name = name.trim();
+        }
+      }
+
+      if (Object.keys(dataToUpdate).length > 0) {
         user = await db.user.update({
           where: { id: user.id },
-          data: { instagramId: nextInstagramId },
+          data: dataToUpdate,
         });
       }
     }

@@ -31,29 +31,13 @@ export async function getOrCreateActiveRound() {
     return { round: existingOpenRound, settings };
   }
 
-  const latestRound = await db.lotteryRound.findFirst({
+  return { round: null, settings };
+}
+
+export async function getLatestRound() {
+  return db.lotteryRound.findFirst({
     orderBy: { startedAt: 'desc' },
   });
-
-  if (latestRound) {
-    return { round: latestRound, settings };
-  }
-
-  const nextNumber = await getNextRoundNumber();
-  const created = await db.lotteryRound.create({
-    data: {
-      number: nextNumber,
-      capacity: settings.capacity,
-      entryPrice: settings.entryPrice,
-      winnersCount: settings.winnersCount,
-      status: 'OPEN',
-      startedAt: new Date(),
-      drawDate: null,
-      closedAt: null,
-    },
-  });
-
-  return { round: created, settings };
 }
 
 export async function closeActiveRoundIfAny() {
@@ -76,7 +60,29 @@ export async function createNewOpenRoundFromSettings() {
   const settings = await db.lotterySettings.findFirst();
 
   if (!settings) {
-    throw new Error('Lottery settings not found');
+    const createdSettings = await db.lotterySettings.create({
+      data: {
+        capacity: 1000,
+        entryPrice: 50000,
+        winnersCount: 1,
+        status: 'OPEN',
+      },
+    });
+
+    const nextNumber = await getNextRoundNumber();
+
+    return db.lotteryRound.create({
+      data: {
+        number: nextNumber,
+        capacity: createdSettings.capacity,
+        entryPrice: createdSettings.entryPrice,
+        winnersCount: createdSettings.winnersCount,
+        status: 'OPEN',
+        startedAt: new Date(),
+        drawDate: null,
+        closedAt: null,
+      },
+    });
   }
 
   const nextNumber = await getNextRoundNumber();

@@ -1,8 +1,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
-import { Bell, Home, Package2, Users, LineChart, LogOut } from 'lucide-react';
+import { Bell, Home, Package2, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -28,20 +27,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               >
                 <Home className="h-4 w-4" />
                 داشبورد
-              </Link>
-              <Link
-                href="/admin"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-              >
-                <Users className="h-4 w-4" />
-                ادمین
-              </Link>
-              <Link
-                href="/admin/finance"
-                className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2 text-primary transition-all hover:text-primary"
-              >
-                <LineChart className="h-4 w-4" />
-                گزارش مالی
               </Link>
             </nav>
           </div>

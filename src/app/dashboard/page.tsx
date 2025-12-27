@@ -19,7 +19,14 @@ interface LotteryData {
         lotteryCode: string;
         drawDate: string;
         prizeAmount: number;
+        prizeType?: string | null;
     } | null;
+    userWins?: Array<{
+        roundNumber: number | null;
+        lotteryCode: string;
+        drawDate: string;
+        prizeType: string | null;
+    }>;
     lotteryCodes: Array<{
         code: string;
         createdAt: string;
@@ -222,13 +229,36 @@ export default function DashboardPage() {
                             <p className="text-lg font-bold font-mono">{data.winner.lotteryCode}</p>
                         </div>
                         <div>
-                            <p className="text-sm font-semibold">مبلغ جایزه</p>
-                            <p className="text-lg font-bold">{data.winner.prizeAmount.toLocaleString('fa-IR')} تومان</p>
+                            <p className="text-sm font-semibold">نوع جایزه</p>
+                            <p className="text-lg font-bold">{data.winner.prizeType ?? '-'}</p>
                         </div>
                         <div>
                             <p className="text-sm font-semibold">زمان قرعه‌کشی</p>
                             <p className="text-lg font-bold">{formatDateTime(data.winner.drawDate)}</p>
                         </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {Array.isArray(data.userWins) && data.userWins.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>سوابق برنده شدن</CardTitle>
+                        <CardDescription>آخرین بردهای شما (تا ۲۰ مورد)</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        {data.userWins.map((w, idx) => (
+                            <div key={`${w.lotteryCode}-${idx}`} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
+                                <div className="space-y-1">
+                                    <div className="text-sm font-semibold">دوره: {w.roundNumber ?? '-'}</div>
+                                    <div className="text-xs text-muted-foreground">{formatDateTime(w.drawDate)}</div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="font-mono font-semibold tracking-widest">{w.lotteryCode}</div>
+                                    <div className="text-xs text-muted-foreground">{w.prizeType ?? '-'}</div>
+                                </div>
+                            </div>
+                        ))}
                     </CardContent>
                 </Card>
             )}

@@ -51,6 +51,13 @@ export async function POST(request: NextRequest) {
 
     const { round } = await getOrCreateActiveRound();
 
+    if (!round) {
+      return NextResponse.json(
+        { success: false, message: 'در حال حاضر دوره فعالی برای خرید وجود ندارد' },
+        { status: 400 }
+      );
+    }
+
     if (round.status !== 'OPEN') {
       return NextResponse.json(
         { success: false, message: 'قرعه‌کشی بسته شده است' },

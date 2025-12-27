@@ -13,6 +13,11 @@ export default function HomeClient() {
   const router = useRouter();
   const [mobile, setMobile] = useState('');
   const [instagramId, setInstagramId] = useState('');
+  const [name, setName] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [registrationRequired, setRegistrationRequired] = useState(true);
+  const [precheckLoading, setPrecheckLoading] = useState(false);
+  const [precheckDone, setPrecheckDone] = useState(false);
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -54,11 +59,78 @@ export default function HomeClient() {
     };
   }, [router]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (mobile.length !== 11) {
+        setRegistrationRequired(true);
+        setPrecheckLoading(false);
+        setPrecheckDone(false);
+        return;
+      }
+
+      setPrecheckLoading(true);
+      setPrecheckDone(false);
+      try {
+        const res = await fetch(`/api/auth/precheck?mobile=${encodeURIComponent(mobile)}`, {
+          method: 'GET',
+          credentials: 'include',
+        });
+        const json = (await res.json().catch(() => ({} as any))) as any;
+
+        if (cancelled) return;
+
+        if (res.ok && json?.success) {
+          const registered = Boolean(json?.registered);
+          setRegistrationRequired(!registered);
+          if (registered) {
+            setInstagramId('');
+            setName('');
+            setTermsAccepted(false);
+          }
+        } else {
+          setRegistrationRequired(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setRegistrationRequired(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setPrecheckLoading(false);
+          setPrecheckDone(true);
+        }
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mobile]);
+
   const handleSendOTP = async () => {
     const iranianMobileRegex = /^09\d{9}$/;
     if (!iranianMobileRegex.test(mobile)) {
       setError('لطفاً شماره موبایل معتبر ایرانی وارد کنید (مثال: 09123456789)');
       return;
+    }
+
+    if (registrationRequired) {
+      if (!name.trim()) {
+        setError('نام کاربر الزامی است');
+        return;
+      }
+      if (!instagramId.trim()) {
+        setError('آیدی اینستاگرام الزامی است');
+        return;
+      }
+      if (!termsAccepted) {
+        setError('لطفاً قوانین سایت را تایید کنید');
+        return;
+      }
     }
 
     setLoading(true);
@@ -68,11 +140,15 @@ export default function HomeClient() {
     try {
       const response = await fetch('/api/auth/send-otp', {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ mobile, instagramId }),
+        body: JSON.stringify({
+          mobile,
+          instagramId,
+          name,
+          termsAccepted,
+        }),
       });
 
       const data = await response.json();
@@ -162,7 +238,9 @@ export default function HomeClient() {
               <CheckCircle2 className="h-8 w-8 text-green-600" />
             </div>
             <CardTitle className="text-2xl">ورود موفق!</CardTitle>
-            <CardDescription>{isAdmin ? 'در حال انتقال به پنل مدیریت...' : 'در حال انتقال به پنل کاربری...'}</CardDescription>
+            <CardDescription>
+              {isAdmin ? 'در حال انتقال به پنل مدیریت...' : 'در حال انتقال به پنل کاربری...'}
+            </CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -170,17 +248,16 @@ export default function HomeClient() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-background">
+    <div className="min-h-screen w-full bg-[url('/logos/background-regester-login.png')] bg-cover bg-center lg:bg-right lg:bg-no-repeat lg:bg-[length:50%_100%]">
       <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen">
         <div className="flex flex-col items-center justify-center p-8 lg:p-12 order-2 lg:order-1">
           <div className="w-full max-w-md space-y-8">
-            <div className="text-center">
-                <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl">
-                    ورود یا ثبت‌نام
-                </h1>
-                <p className="text-muted-foreground mt-2">
-                    برای شرکت در قرعه‌کشی، شماره موبایل خود را وارد کنید
-                </p>
+            <div className="text-center relative">
+              <div className="absolute left-0 top-0 -translate-x-6 -translate-y-6 -rotate-12">
+                <img src="/logos/logo-regester.png" alt="logo" className="h-24 w-24 object-contain" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl">ورود یا ثبت ‌نام</h1>
+              <p className="text-muted-foreground mt-2">برای شرکت در قرعه‌کشی، شماره موبایل خود را وارد کنید</p>
             </div>
 
             {error && (
@@ -224,28 +301,67 @@ export default function HomeClient() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="instagramId" className="text-sm font-medium">
-                    آیدی اینستاگرام
-                  </label>
-                  <Input
-                    id="instagramId"
-                    type="text"
-                    placeholder="مثلاً: your_id"
-                    value={instagramId}
-                    onChange={(e) => setInstagramId(e.target.value)}
-                    className="text-left dir-ltr"
-                    disabled={loading}
-                  />
-                </div>
+                {registrationRequired && precheckDone && !precheckLoading && (
+                  <>
+                    <div className="space-y-2">
+                      <label htmlFor="name" className="text-sm font-medium">
+                        نام کاربر
+                      </label>
+                      <Input
+                        id="name"
+                        type="text"
+                        placeholder="مثلاً: امیر"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        disabled={loading}
+                      />
+                    </div>
 
-                <Button
-                  onClick={handleSendOTP}
-                  disabled={loading || mobile.length !== 11}
-                  className="w-full text-lg py-6"
-                >
-                  {loading ? 'در حال ارسال...' : 'ارسال کد تایید'}
-                </Button>
+                    <div className="space-y-2">
+                      <label htmlFor="instagramId" className="text-sm font-medium">
+                        آیدی اینستاگرام
+                      </label>
+                      <Input
+                        id="instagramId"
+                        type="text"
+                        placeholder="مثلاً: your_id"
+                        value={instagramId}
+                        onChange={(e) => setInstagramId(e.target.value)}
+                        className="text-left dir-ltr"
+                        disabled={loading}
+                      />
+                    </div>
+
+                    <div className="flex items-start gap-2">
+                      <input
+                        id="termsAccepted"
+                        type="checkbox"
+                        checked={termsAccepted}
+                        onChange={(e) => setTermsAccepted(e.target.checked)}
+                        disabled={loading}
+                        className="mt-1"
+                      />
+                      <label htmlFor="termsAccepted" className="text-sm text-muted-foreground leading-6">
+                        قوانین سایت را مطالعه کردم و می‌پذیرم
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {(!registrationRequired || termsAccepted) && (
+                  <Button
+                    onClick={handleSendOTP}
+                    disabled={
+                      loading ||
+                      precheckLoading ||
+                      mobile.length !== 11 ||
+                      (registrationRequired && (!precheckDone || !name.trim() || !instagramId.trim() || !termsAccepted))
+                    }
+                    className="w-full text-lg py-6"
+                  >
+                    {loading ? 'در حال ارسال...' : 'ارسال کد تایید'}
+                  </Button>
+                )}
               </TabsContent>
 
               <TabsContent value="otp" className="space-y-6 pt-6">
@@ -263,7 +379,7 @@ export default function HomeClient() {
                     className="text-center text-3xl tracking-[1.5rem] font-semibold dir-ltr bg-transparent"
                     disabled={loading}
                   />
-                   <p className="text-xs text-muted-foreground text-center pt-2">کد ارسال شده به {mobile}</p>
+                  <p className="text-xs text-muted-foreground text-center pt-2">کد ارسال شده به {mobile}</p>
                 </div>
 
                 <Button
@@ -275,49 +391,47 @@ export default function HomeClient() {
                 </Button>
 
                 <div className="text-center text-sm">
-                {countdown > 0 ? (
-                  <p className="text-muted-foreground">
-                    ارسال مجدد کد تا {countdown} ثانیه دیگر
-                  </p>
-                ) : (
-                  <Button
-                    variant="link"
-                    onClick={handleSendOTP}
-                    disabled={loading}
-                    className="p-0 h-auto"
-                  >
-                    ارسال مجدد کد
-                  </Button>
-                )}
+                  {countdown > 0 ? (
+                    <p className="text-muted-foreground">ارسال مجدد کد تا {countdown} ثانیه دیگر</p>
+                  ) : (
+                    <Button
+                      variant="link"
+                      onClick={handleSendOTP}
+                      disabled={loading}
+                      className="p-0 h-auto"
+                    >
+                      ارسال مجدد کد
+                    </Button>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
           </div>
         </div>
+
         <div className="hidden lg:flex flex-col items-center justify-center p-8 lg:p-12 bg-muted/40 order-1 lg:order-2 border-r">
-            <div className="w-full max-w-md space-y-8 text-center">
-                <div className="flex justify-center">
-                    <Shield className="h-16 w-16 text-primary" />
-                </div>
-                <h2 className="text-3xl font-bold tracking-tighter">
-                    به دنیای شانس خوش آمدید
-                </h2>
-                <p className="text-muted-foreground">
-                    سیستم قرعه‌کشی آنلاین ما با بهره‌گیری از جدیدترین تکنولوژی‌ها، تجربه‌ای امن، شفاف و هیجان‌انگیز را برای شما به ارمغان می‌آورد.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                    <div className="p-4 rounded-lg bg-background/50 text-center">
-                        <CheckCircle2 className="h-8 w-8 text-primary mx-auto mb-2" />
-                        <h3 className="font-semibold">امن و مطمئن</h3>
-                        <p className="text-sm text-muted-foreground">ورود با کد یکبار مصرف</p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-background/50 text-center">
-                        <User className="h-8 w-8 text-primary mx-auto mb-2" />
-                        <h3 className="font-semibold">قرعه‌کشی شفاف</h3>
-                        <p className="text-sm text-muted-foreground">نتایج قابل استعلام</p>
-                    </div>
-                </div>
+          <div className="w-full max-w-md space-y-8 text-center">
+            <div className="flex justify-center">
+              <Shield className="h-16 w-16 text-primary" />
             </div>
+            <h2 className="text-3xl font-bold tracking-tighter">به دنیای شانس خوش آمدید</h2>
+            <p className="text-muted-foreground">
+              سیستم قرعه‌کشی آنلاین ما با بهره‌گیری از جدیدترین تکنولوژی‌ها، تجربه‌ای امن، شفاف و
+              هیجان‌انگیز را برای شما به ارمغان می‌آورد.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+              <div className="p-4 rounded-lg bg-background/50 text-center">
+                <CheckCircle2 className="h-8 w-8 text-primary mx-auto mb-2" />
+                <h3 className="font-semibold">امن و مطمئن</h3>
+                <p className="text-sm text-muted-foreground">ورود با کد یکبار مصرف</p>
+              </div>
+              <div className="p-4 rounded-lg bg-background/50 text-center">
+                <User className="h-8 w-8 text-primary mx-auto mb-2" />
+                <h3 className="font-semibold">قرعه‌کشی شفاف</h3>
+                <p className="text-sm text-muted-foreground">نتایج قابل استعلام</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

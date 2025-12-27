@@ -20,6 +20,7 @@ export async function PATCH(request: NextRequest) {
     const entryPrice = body.entryPrice;
     const winnersCount = body.winnersCount;
     const status = body.status;
+    const prizeType = typeof body?.prizeType === 'string' ? body.prizeType.trim() : null;
 
     if (
       typeof capacity !== 'number' ||
@@ -56,20 +57,14 @@ export async function PATCH(request: NextRequest) {
             winnersCount,
             status: status || 'OPEN',
             drawDate: null,
+            prizeType,
           },
         });
 
-        const activeRound = await tx.lotteryRound.findFirst({
+        await tx.lotteryRound.updateMany({
           where: { status: 'OPEN' },
-          orderBy: { startedAt: 'desc' },
+          data: { status: 'CLOSED', closedAt: new Date() },
         });
-
-        if (activeRound) {
-          await tx.lotteryRound.update({
-            where: { id: activeRound.id },
-            data: { status: 'CLOSED', closedAt: new Date() },
-          });
-        }
 
         const lastRoundNumber = await tx.lotteryRound.aggregate({
           _max: { number: true },
@@ -122,20 +117,14 @@ export async function PATCH(request: NextRequest) {
           winnersCount,
           status: status || 'OPEN',
           drawDate: null,
+          prizeType,
         },
       });
 
-      const activeRound = await tx.lotteryRound.findFirst({
+      await tx.lotteryRound.updateMany({
         where: { status: 'OPEN' },
-        orderBy: { startedAt: 'desc' },
+        data: { status: 'CLOSED', closedAt: new Date() },
       });
-
-      if (activeRound) {
-        await tx.lotteryRound.update({
-          where: { id: activeRound.id },
-          data: { status: 'CLOSED', closedAt: new Date() },
-        });
-      }
 
       const lastRoundNumber = await tx.lotteryRound.aggregate({
         _max: { number: true },
@@ -175,6 +164,7 @@ export async function PATCH(request: NextRequest) {
         winnersCount: updated.winnersCount,
         status: updated.status,
         drawDate: updated.drawDate,
+        prizeType: updated.prizeType,
       },
     });
   } catch (error) {

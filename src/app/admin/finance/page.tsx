@@ -100,7 +100,7 @@ function BarChart({ values }: { values: Array<{ label: string; value: number }> 
                       <div className="flex flex-col items-center gap-2">
                         <button
                           type="button"
-                          className="relative w-full"
+                          className="relative flex h-72 w-full items-end"
                           onMouseEnter={() => setHovered(v)}
                           onMouseLeave={() => setHovered((cur) => (cur?.label === v.label ? null : cur))}
                           onFocus={() => setHovered(v)}
@@ -109,8 +109,8 @@ function BarChart({ values }: { values: Array<{ label: string; value: number }> 
                         >
                           <div
                             className={
-                              "w-full rounded-t-md bg-primary/90 transition-all duration-300 ease-in-out hover:bg-primary " +
-                              (isActive ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : '')
+                              "mx-auto w-1 rounded-t bg-green-500/90 transition-all duration-300 ease-in-out hover:bg-green-500 " +
+                              (isActive ? 'ring-2 ring-green-400 ring-offset-2 ring-offset-background' : '')
                             }
                             style={{ height: `${pct}%` }}
                           />
@@ -175,8 +175,15 @@ export default function FinancePage() {
   const chartValues = useMemo(() => {
     if (!data) return [];
     const tail = data.series.slice(-12);
-    return tail.map((x) => ({ label: x.key, value: x.revenue }));
+    return tail.map((x) => {
+      const value = Number(x.revenue);
+      return { label: x.key, value: Number.isFinite(value) ? value : 0 };
+    });
   }, [data]);
+
+  const chartHasData = useMemo(() => {
+    return chartValues.some((v) => v.value > 0);
+  }, [chartValues]);
 
   const PaymentStatusBadge = ({ status }: { status: string }) => {
     switch (status) {
@@ -268,7 +275,7 @@ export default function FinancePage() {
             </div>
           </CardHeader>
           <CardContent>
-            {chartValues.length === 0 ? (
+            {chartValues.length === 0 || !chartHasData ? (
                 <div className="text-center py-16 text-muted-foreground">داده‌ای برای نمایش در این بازه زمانی وجود ندارد</div>
             ) : (
                 <BarChart values={chartValues} />
